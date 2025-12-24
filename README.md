@@ -18,14 +18,6 @@
 
 **PicStoreJson** 是一个基于 **Python + Flask** 的轻量级 Web 应用，  
 用于 **图片自助上传 → 图床 → 自动写入 GitHub Gist JSON 文件**。
-
-适用于：
-
-- 图标库 / 资源站
-- 前端配置 JSON
-- 移动端快速上传图片
-- PicGo / ImgURL / PICUI 图床整合
-
 ---
 
 ## 🚀 核心功能
