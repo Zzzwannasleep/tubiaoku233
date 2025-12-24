@@ -3,7 +3,7 @@
 <p align="center">
   <img src="https://img.picgo.net/2025/07/13/PicStoreJson5de53c3c9bd498d4.jpg" alt="" width="400px"/>
   <br>
-  [上传链接](https://tubiao666.greentea520.xyz/)
+  [[上传链接]](https://tubiao666.greentea520.xyz/)
   <br>
   <span>1. 不要肆意上传 2. 广告不要上传 3. 乱七八糟的不要上传 4.请好好命名 没有的再上传 </span>
 </p>
