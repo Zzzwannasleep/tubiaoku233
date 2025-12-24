@@ -5,28 +5,51 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Zzzの图标库</title>
   <link rel="stylesheet" href="/static/css/style.css">
+
+  <!-- ✅ 网页图标 favicon（PNG） -->
+  <link rel="icon" href="/static/favicon.png" type="image/png">
 </head>
+
 <body>
   <div class="container">
     <h1>上传图片</h1>
+
     <div class="form-group">
       <label for="name">请输入图片名字(一定要好好写 不要乱传PLZ)</label>
       <input type="text" id="name" placeholder="请输入名称" required>
     </div>
+
     <div class="form-group">
       <label for="image">选择图片</label>
       <input type="file" id="image" accept="image/*" required>
     </div>
+
     <button class="upload-btn" onclick="uploadImage()">上传</button>
     <div id="message"></div>
+
     <p class="centered-link">
-      <a href="https://gist.githubusercontent.com/{{ github_user }}/{{ gist_id }}/raw/icons.json" target="_blank"><img src="https://cdn-icons-png.flaticon.com/512/136/136525.png" alt="GitHub" class="github-icon"> Json订阅链接</a>
-      <a href="https://github.com/huangxd-/PicStoreJson" target="_blank"><img src="https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png" alt="GitHub" class="github-icon"> GitHub开源仓库</a>
+      <a href="https://gist.githubusercontent.com/{{ github_user }}/{{ gist_id }}/raw/icons.json" target="_blank">
+        <img src="https://cdn-icons-png.flaticon.com/512/136/136525.png" alt="GitHub" class="github-icon">
+        Json订阅链接
+      </a>
+
+      <a href="https://github.com/huangxd-/PicStoreJson" target="_blank">
+        <img src="https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png" alt="GitHub" class="github-icon">
+        GitHub开源仓库
+      </a>
     </p>
+
     <p class="centered-link"></p>
-    <p class="hint-text">Gist链接在本地可能存在缓存，如上传成功后查看json未变化，请清理缓存或等一会再查看</p>
-    <p class="hint-text">1. 不要肆意上传 2. 广告不要上传 3. 乱七八糟的不要上传</p>
+
+    <p class="hint-text">
+      Gist链接在本地可能存在缓存，如上传成功后查看json未变化，请清理缓存或等一会再查看
+    </p>
+
+    <p class="hint-text">
+      1. 不要肆意上传 2. 广告不要上传 3. 乱七八糟的不要上传
+    </p>
   </div>
+
   <script src="/static/js/script.js"></script>
 </body>
 </html>
