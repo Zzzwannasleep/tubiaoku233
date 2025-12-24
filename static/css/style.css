@@ -1,0 +1,122 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Arial', sans-serif;
+  background-color: #f4f7fa;
+  color: #333;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+}
+
+.container {
+  background: #fff;
+  border-radius: 10px;
+  padding: 20px;
+  width: 100%;
+  max-width: 500px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+h1 {
+  text-align: center;
+  margin-bottom: 20px;
+  font-size: 24px;
+  color: #333;
+}
+
+.form-group {
+  margin-bottom: 15px;
+}
+
+label {
+  font-size: 14px;
+  color: #555;
+  margin-bottom: 5px;
+  display: block;
+}
+
+input[type="text"], input[type="file"] {
+  width: 100%;
+  padding: 10px;
+  margin-top: 5px;
+  border: 1px solid #ddd;
+  border-radius: 5px;
+  font-size: 14px;
+}
+
+button.upload-btn {
+  background-color: #4CAF50;
+  color: #fff;
+  padding: 12px 20px;
+  border: none;
+  border-radius: 5px;
+  width: 100%;
+  font-size: 16px;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+
+button.upload-btn:hover {
+  background-color: #45a049;
+}
+
+#message {
+  margin-top: 15px;
+  text-align: center;
+  color: #333;
+}
+
+.centered-link {
+  text-align: center;
+  margin-top: 20px;
+}
+
+.hint-text {
+  text-align: center;
+  font-size: 10px;
+  margin-top: 10px;
+}
+
+.github-icon {
+  width: 20px;
+  margin-right: 5px;
+  vertical-align: middle;
+}
+
+.centered-link a {
+  text-decoration: none;
+  color: #007bff;
+  font-size: 14px;
+  padding-right: 10px;
+}
+
+.centered-link a:hover {
+  text-decoration: underline;
+}
+
+/* 响应式设计 */
+@media (max-width: 600px) {
+  .container {
+    padding: 15px;
+  }
+
+  h1 {
+    font-size: 20px;
+  }
+
+  button.upload-btn {
+    padding: 10px;
+    font-size: 14px;
+  }
+
+  .form-group input {
+    padding: 8px;
+    font-size: 13px;
+  }
+}

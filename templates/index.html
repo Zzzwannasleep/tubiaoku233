@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PicStoreJson图片上传</title>
+  <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+  <div class="container">
+    <h1>PicStoreJson 上传图片</h1>
+    <div class="form-group">
+      <label for="name">请输入名称</label>
+      <input type="text" id="name" placeholder="请输入名称" required>
+    </div>
+    <div class="form-group">
+      <label for="image">选择图片</label>
+      <input type="file" id="image" accept="image/*" required>
+    </div>
+    <button class="upload-btn" onclick="uploadImage()">上传</button>
+    <div id="message"></div>
+    <p class="centered-link">
+      <a href="https://gist.githubusercontent.com/{{ github_user }}/{{ gist_id }}/raw/icons.json" target="_blank"><img src="https://cdn-icons-png.flaticon.com/512/136/136525.png" alt="GitHub" class="github-icon"> Json订阅链接</a>
+      <a href="https://github.com/huangxd-/PicStoreJson" target="_blank"><img src="https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png" alt="GitHub" class="github-icon"> GitHub开源仓库</a>
+    </p>
+    <p class="centered-link"></p>
+    <p class="hint-text">gist链接在本地可能存在缓存，如上传成功后查看json未变化，请清理缓存或等一会再查看</p>
+    <p class="hint-text">1. 不要肆意上传 2. 广告不要上传 3. 乱七八糟的不要上传</p>
+  </div>
+  <script src="/static/js/script.js"></script>
+</body>
+</html>
