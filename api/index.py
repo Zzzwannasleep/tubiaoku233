@@ -184,14 +184,17 @@ def update_gist(name, url):
     return {"success": True, "name": name}
             
 def upload_to_picui(image):
-    url = "https://picui.cn/api/upload.php"   # ← 改成 .php
+    url = "https://picui.cn/api/upload"          # 保持官方路径
     files = {"image": (image.filename, image.stream, image.mimetype)}
-    token = os.getenv("PICUI_TOKEN", "")
-    headers = {"Authorization": f"Bearer {token}"} if token else {}
+    token = os.getenv("PICUI_TOKEN", "").strip()
+    if not token:
+        print("PICUI_TOKEN 为空，无法上传")
+        return None
+    headers = {"Authorization": f"Bearer {token}"}
     try:
         r = requests.post(url, files=files, headers=headers, timeout=15)
         if r.status_code != 200:
-            print("picui 上传失败", r.text)
+            print("picui 上传失败", r.status_code, r.text)
             return None
         data = r.json()
         if data.get("code") == 200:
