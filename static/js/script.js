@@ -7,11 +7,12 @@ async function uploadSingle() {
   if (!nameInput || !imageInput || !messageDiv) return;
   if (resultList) resultList.innerHTML = "";
 
-  if (!nameInput.value || !imageInput.files[0]) {
+  if (!nameInput.value.trim() || !imageInput.files[0]) {
     messageDiv.textContent = "请输入名称并选择图片！";
     return;
   }
 
+  // 单张上传：只取第一张
   const formData = new FormData();
   formData.append("source", imageInput.files[0]);
   formData.append("name", nameInput.value.trim());
@@ -27,11 +28,10 @@ async function uploadSingle() {
 
     if (response.ok && data.success) {
       messageDiv.textContent = `上传成功！名称: ${data.name}`;
-      if (resultList) {
-        resultList.innerHTML = `<li>✅ <b>${data.name}</b></li>`;
-      }
+      if (resultList) resultList.innerHTML = `<li>✅ <b>${data.name}</b></li>`;
       nameInput.value = "";
       imageInput.value = "";
+      hidePreview();
     } else {
       messageDiv.textContent = `错误：${data.error || response.status}`;
     }
@@ -53,6 +53,10 @@ async function uploadBatch() {
     messageDiv.textContent = "请选择图片（可多选）！";
     return;
   }
+  if (files.length === 1) {
+    messageDiv.textContent = "批量上传请至少选择 2 张图片（或用单张上传按钮）。";
+    return;
+  }
 
   function filenameToName(filename) {
     return filename.split(/[\\/]/).pop().replace(/\.[^.]+$/, "");
@@ -71,7 +75,7 @@ async function uploadBatch() {
   try {
     for (let i = 0; i < files.length; i++) {
       const f = files[i];
-      const name = filenameToName(f.name);
+      const name = filenameToName(f.name); // ✅ 批量：强制用文件名
 
       const formData = new FormData();
       formData.append("source", f);
@@ -95,8 +99,60 @@ async function uploadBatch() {
 
     messageDiv.textContent = `批量上传完成：${files.length}/${files.length}`;
     imageInput.value = "";
+    hidePreview();
   } catch (err) {
     messageDiv.textContent = `批量上传失败：${err.message}`;
+  }
+}
+
+/* ===== 批量预览：选择多张时显示将使用的名称 ===== */
+(function setupBatchPreview() {
+  const imageInput = document.getElementById("image");
+  const previewBox = document.getElementById("batchPreview");
+  const previewList = document.getElementById("previewList");
+
+  if (!imageInput || !previewBox || !previewList) return;
+
+  function filenameToName(filename) {
+    return filename.split(/[\\/]/).pop().replace(/\.[^.]+$/, "");
+  }
+
+  function prettySize(bytes) {
+    if (bytes < 1024) return `${bytes} B`;
+    const kb = bytes / 1024;
+    if (kb < 1024) return `${kb.toFixed(1)} KB`;
+    const mb = kb / 1024;
+    return `${mb.toFixed(1)} MB`;
+  }
+
+  imageInput.addEventListener("change", () => {
+    const files = Array.from(imageInput.files || []);
+    previewList.innerHTML = "";
+
+    if (files.length <= 1) {
+      previewBox.style.display = "none";
+      return;
+    }
+
+    previewBox.style.display = "block";
+    for (const f of files) {
+      const name = filenameToName(f.name);
+      const li = document.createElement("li");
+      li.innerHTML = `
+        <span>🖼️ <b>${name}</b></span>
+        <span class="meta">${prettySize(f.size)}</span>
+      `;
+      previewList.appendChild(li);
+    }
+  });
+})();
+
+function hidePreview() {
+  const previewBox = document.getElementById("batchPreview");
+  const previewList = document.getElementById("previewList");
+  if (previewBox && previewList) {
+    previewList.innerHTML = "";
+    previewBox.style.display = "none";
   }
 }
 
