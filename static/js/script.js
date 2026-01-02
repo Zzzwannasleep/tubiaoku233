@@ -1,17 +1,100 @@
-async function uploadImage() {
+async function uploadSingle() {
   const nameInput = document.getElementById("name");
   const imageInput = document.getElementById("image");
-  const useFilename = document.getElementById("useFilename");
+  const messageDiv = document.getElementById("message");
+  const resultList = document.getElementById("resultList");
+
+  if (resultList) resultList.innerHTML = "";
+
+  if (!nameInput.value || !imageInput.files[0]) {
+    messageDiv.textContent = "请输入名称并选择图片！";
+    return;
+  }
+
+  const formData = new FormData();
+  formData.append("source", imageInput.files[0]); // 后端字段名是 source
+  formData.append("name", nameInput.value.trim());
+
+  messageDiv.textContent = "正在上传...";
+  try {
+    const response = await fetch("/api/upload", {
+      method: "POST",
+      body: formData,
+    });
+
+    const data = await response.json().catch(() => ({}));
+
+    if (response.ok && data.success) {
+      messageDiv.textContent = `上传成功！名称: ${data.name}`;
+      if (resultList) resultList.innerHTML = `<li>✅ <b>${data.name}</b></li>`;
+      nameInput.value = "";
+      imageInput.value = "";
+    } else {
+      messageDiv.textContent = `错误：${data.error || `HTTP ${response.status}`}`;
+    }
+  } catch (error) {
+    messageDiv.textContent = `上传失败：${error.message}`;
+  }
+}
+
+async function uploadBatch() {
+  const imageInput = document.getElementById("image");
   const messageDiv = document.getElementById("message");
   const resultList = document.getElementById("resultList");
 
   const files = Array.from(imageInput.files || []);
-  resultList.innerHTML = "";
+  if (resultList) resultList.innerHTML = "";
 
   if (files.length === 0) {
-    messageDiv.textContent = "请选择图片！";
+    messageDiv.textContent = "请选择图片（可多选）！";
     return;
   }
+
+  function filenameToName(filename) {
+    return filename.split(/[\\/]/).pop().replace(/\.[^.]+$/, "");
+  }
+
+  function addResult(ok, name, info) {
+    if (!resultList) return;
+    const li = document.createElement("li");
+    li.style.marginTop = "6px";
+    li.innerHTML = ok
+      ? `✅ <b>${name}</b> ${info ? `→ <a href="${info}" target="_blank">${info}</a>` : ""}`
+      : `❌ <b>${name}</b> → ${info || "失败"}`;
+    resultList.appendChild(li);
+  }
+
+  try {
+    for (let i = 0; i < files.length; i++) {
+      const f = files[i];
+      const name = filenameToName(f.name);
+
+      const formData = new FormData();
+      formData.append("source", f);
+      formData.append("name", name); // 批量时自动用文件名当 name
+
+      messageDiv.textContent = `批量上传中 ${i + 1}/${files.length}: ${f.name}`;
+
+      const response = await fetch("/api/upload", {
+        method: "POST",
+        body: formData,
+      });
+
+      const data = await response.json().catch(() => ({}));
+
+      if (response.ok && data.success) {
+        addResult(true, data.name || name, data.url || "");
+      } else {
+        addResult(false, name, data.error || `HTTP ${response.status}`);
+      }
+    }
+
+    messageDiv.textContent = `批量上传完成：${files.length}/${files.length}`;
+    imageInput.value = "";
+  } catch (err) {
+    messageDiv.textContent = `批量上传失败：${err.message}`;
+  }
+}
 
   // 规则：
   // - 单张上传：默认仍要求手填 name（保持你的原习惯）
