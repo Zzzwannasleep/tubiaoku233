@@ -4,42 +4,50 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Zzzの图标库</title>
-  <link rel="stylesheet" href="/static/css/style.css">
 
-  <!-- ✅ 网页图标 favicon（PNG） -->
-  <link rel="icon" href="/static/favicon.png" type="image/png">
+  <!-- 防缓存：v=stable_20260102，后续你改样式/脚本就改这个值 -->
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=stable_20260102">
+  <link rel="icon" href="{{ url_for('static', filename='favicon.png') }}" type="image/png">
 </head>
 
 <body>
   <div class="container">
     <h1>Zzzの图标库</h1>
 
-    <!-- ✅ 单张上传的名称输入 -->
     <div class="form-group">
       <label for="name">图片名称（单张上传必填）</label>
-      <input type="text" id="name" placeholder="例如：home、settings、logo..." />
+      <input type="text" id="name" placeholder="例如：home / settings / logo">
     </div>
 
-    <!-- ✅ 提示块：不是输入框，不可填写 -->
     <div class="form-group">
       <div class="name-hint">
-        单张上传：需要在上面填写名称<br>
-        批量上传：自动使用文件名（去扩展名）作为名称
+        单张上传：需要填写名称<br>
+        批量上传：自动使用文件名（去扩展名）
       </div>
     </div>
 
     <div class="form-group">
       <label for="image">选择图片（支持多选）</label>
-      <input type="file" id="image" accept="image/*" multiple required>
+      <input type="file" id="image" accept="image/*" multiple>
     </div>
 
-    <!-- ✅ 两个按钮 -->
     <div class="btn-row">
       <button class="upload-btn" onclick="uploadSingle()">单张上传</button>
       <button class="upload-btn" onclick="uploadBatch()">批量上传</button>
     </div>
 
-    <!-- ✅ 批量预览区（选多张时出现） -->
+    <!-- 进度条（批量上传时显示） -->
+    <div id="progressWrap" class="progress-wrap" style="display:none;">
+      <div class="progress-top">
+        <span id="progressText">0/0</span>
+        <span id="progressFile" class="progress-file"></span>
+      </div>
+      <div class="progress-bar">
+        <div id="progressFill" class="progress-fill" style="width:0%"></div>
+      </div>
+    </div>
+
+    <!-- 批量预览（选择多张时显示） -->
     <div id="batchPreview" class="batch-preview" style="display:none;">
       <div class="preview-title">📦 批量上传预览（将使用文件名作为名称）</div>
       <ul id="previewList" class="preview-list"></ul>
@@ -61,14 +69,10 @@
     </p>
 
     <p class="hint-text">
-      Gist链接在本地可能存在缓存，如上传成功后查看json未变化，请清理缓存或等一会再查看
-    </p>
-
-    <p class="hint-text">
-      1. 不要肆意上传 2. 广告不要上传 3. 乱七八糟的不要上传
+      上传后如 JSON 未更新，请稍等或清缓存
     </p>
   </div>
 
-  <script src="/static/js/script.js"></script>
+  <script src="{{ url_for('static', filename='js/script.js') }}?v=stable_20260102"></script>
 </body>
 </html>
