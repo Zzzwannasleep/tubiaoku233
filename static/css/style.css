@@ -239,3 +239,13 @@ button.upload-btn:active{
     font-size: 13px;
   }
 }
+
+.name-hint {
+  font-size: 14px;
+  color: #888;
+  background: #f7f7f7;
+  border-left: 4px solid #ff8c00;
+  padding: 10px 12px;
+  border-radius: 6px;
+  line-height: 1.6;
+}
