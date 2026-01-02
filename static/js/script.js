@@ -96,30 +96,6 @@ async function uploadBatch() {
   }
 }
 
-  // 规则：
-  // - 单张上传：默认仍要求手填 name（保持你的原习惯）
-  // - 批量上传：name 可不填；默认用文件名
-  const manualName = (nameInput.value || "").trim();
-  if (files.length === 1 && !manualName) {
-    // 如果你也想“单张不填就用文件名”，把这行判断删掉即可
-    messageDiv.textContent = "请输入名称并选择图片！";
-    return;
-  }
-
-  function filenameToName(filename) {
-    const base = filename.split(/[\\/]/).pop();
-    return base.replace(/\.[^.]+$/, "");
-  }
-
-  function addResult(ok, name, info) {
-    const li = document.createElement("li");
-    li.style.marginTop = "6px";
-    li.innerHTML = ok
-      ? `✅ <b>${name}</b> ${info ? `→ <a href="${info}" target="_blank">${info}</a>` : ""}`
-      : `❌ <b>${name || "(未命名)"}</b> → ${info || "失败"}`;
-    resultList.appendChild(li);
-  }
-
   messageDiv.textContent = "开始上传...";
   try {
     // ✅ 串行逐个上传（最稳，不容易超时/被服务限制）
