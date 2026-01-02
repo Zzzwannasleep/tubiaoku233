@@ -14,31 +14,39 @@
   <div class="container">
     <h1>Zzzの图标库</h1>
 
+    <!-- ✅ 单张上传的名称输入 -->
     <div class="form-group">
-  <label for="name">请输入图片名字(一定要好好写 不要乱传PLZ)</label>
-  <input type="text" id="name" placeholder="单张上传时可手填名称（批量可不填）">
-</div>
+      <label for="name">图片名称（单张上传必填）</label>
+      <input type="text" id="name" placeholder="例如：home、settings、logo..." />
+    </div>
 
-<div class="form-group">
-  <label for="image">选择图片（支持多选）</label>
-  <input type="file" id="image" accept="image/*" multiple required>
-</div>
+    <!-- ✅ 提示块：不是输入框，不可填写 -->
+    <div class="form-group">
+      <div class="name-hint">
+        单张上传：需要在上面填写名称<br>
+        批量上传：自动使用文件名（去扩展名）作为名称
+      </div>
+    </div>
 
-<div class="form-group">
-  <div class="name-hint">
-    单张上传必须填写文件名！！！｜批量上传自动使用文件名
-  </div>
-</div>
+    <div class="form-group">
+      <label for="image">选择图片（支持多选）</label>
+      <input type="file" id="image" accept="image/*" multiple required>
+    </div>
 
+    <!-- ✅ 两个按钮 -->
+    <div class="btn-row">
+      <button class="upload-btn" onclick="uploadSingle()">单张上传</button>
+      <button class="upload-btn" onclick="uploadBatch()">批量上传</button>
+    </div>
 
-<div style="display:flex; gap:12px; justify-content:center;">
-  <button class="upload-btn" onclick="uploadSingle()">单张上传</button>
-  <button class="upload-btn" onclick="uploadBatch()">批量上传</button>
-</div>
+    <!-- ✅ 批量预览区（选多张时出现） -->
+    <div id="batchPreview" class="batch-preview" style="display:none;">
+      <div class="preview-title">📦 批量上传预览（将使用文件名作为名称）</div>
+      <ul id="previewList" class="preview-list"></ul>
+    </div>
 
-<div id="message"></div>
-<ul id="resultList"></ul>
-
+    <div id="message"></div>
+    <ul id="resultList"></ul>
 
     <p class="centered-link">
       <a href="https://gist.githubusercontent.com/{{ github_user }}/{{ gist_id }}/raw/icons.json" target="_blank">
@@ -51,8 +59,6 @@
         GitHub开源仓库
       </a>
     </p>
-
-    <p class="centered-link"></p>
 
     <p class="hint-text">
       Gist链接在本地可能存在缓存，如上传成功后查看json未变化，请清理缓存或等一会再查看
