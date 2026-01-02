@@ -39,34 +39,81 @@ def home():
 @app.route("/api/upload", methods=["POST"])
 def upload_image():
     try:
-        # 获取表单数据
-        image = request.files.get("source")
-        name = request.form.get("name")
+        # ✅ 兼容单图 & 多图：前端字段名仍然用 source
+        images = request.files.getlist("source")
+        if not images:
+            return jsonify({"error": "缺少图片"}), 400
 
-        if not image or not name:
-            return jsonify({"error": "缺少图片或名称"}), 400
+        # name：单张上传时可以从表单拿；批量时可为空（用文件名）
+        raw_name = (request.form.get("name") or "").strip()
 
-        # 根据环境变量决定使用哪个上传接口
         upload_service = os.getenv("UPLOAD_SERVICE", "PICGO").upper()
 
-        if upload_service == "IMGURL":
-            image_url = upload_to_imgurl(image)
+        results = []
+        for image in images:
+            # 跳过空项（有些浏览器会塞空文件）
+            if not image or not getattr(image, "filename", ""):
+                continue
 
-        elif upload_service == "PICUI":
-            # 强制 Token 模式：没有 Token 直接拒绝
-            if not os.getenv("PICUI_TOKEN", "").strip():
-                return jsonify({"error": "PICUI_TOKEN 未配置，已启用强制 Token 上传模式"}), 500
+            # ✅ 自动读取文件名作为 name（去扩展名）
+            auto_name = os.path.splitext(image.filename)[0]
+            name = raw_name or auto_name
 
-            image_url = upload_to_picui(image)
+            # 根据环境变量决定使用哪个上传接口
+            if upload_service == "IMGURL":
+                image_url = upload_to_imgurl(image)
 
-        else:
-            image_url = upload_to_picgo(image)
+            elif upload_service == "PICUI":
+                if not os.getenv("PICUI_TOKEN", "").strip():
+                    results.append({
+                        "ok": False,
+                        "name": name,
+                        "error": "PICUI_TOKEN 未配置，已启用强制 Token 上传模式"
+                    })
+                    continue
+                image_url = upload_to_picui(image)
 
-        if not image_url:
-            return jsonify({
-                "error": "图片上传失败",
-                "details": f"使用 {upload_service} 服务上传失败"
-            }), 500
+            else:
+                image_url = upload_to_picgo(image)
+
+            if not image_url:
+                results.append({
+                    "ok": False,
+                    "name": name,
+                    "error": f"图片上传失败（{upload_service}）"
+                })
+                continue
+
+            gist_result = update_gist(name, image_url)
+            if not gist_result["success"]:
+                results.append({
+                    "ok": False,
+                    "name": name,
+                    "error": gist_result["error"]
+                })
+                continue
+
+            results.append({
+                "ok": True,
+                "name": gist_result["name"],  # 这里可能被 get_unique_name 改名
+                "url": image_url
+            })
+
+        if not results:
+            return jsonify({"error": "没有可用的图片文件"}), 400
+
+        # ✅ 保持你原来的单图返回格式，避免前端兼容问题
+        if len(results) == 1:
+            r = results[0]
+            if r["ok"]:
+                return jsonify({"success": True, "name": r["name"]}), 200
+            return jsonify({"error": r["error"]}), 400
+
+        # ✅ 批量返回
+        return jsonify({"success": True, "results": results}), 200
+
+    except Exception as e:
+        return jsonify({"error": "服务器错误", "details": str(e)}), 500
 
         # 更新 Gist
         gist_result = update_gist(name, image_url)
