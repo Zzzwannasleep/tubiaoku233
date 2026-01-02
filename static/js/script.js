@@ -4,6 +4,7 @@ async function uploadSingle() {
   const messageDiv = document.getElementById("message");
   const resultList = document.getElementById("resultList");
 
+  if (!nameInput || !imageInput || !messageDiv) return;
   if (resultList) resultList.innerHTML = "";
 
   if (!nameInput.value || !imageInput.files[0]) {
@@ -12,7 +13,7 @@ async function uploadSingle() {
   }
 
   const formData = new FormData();
-  formData.append("source", imageInput.files[0]); // 后端字段名是 source
+  formData.append("source", imageInput.files[0]);
   formData.append("name", nameInput.value.trim());
 
   messageDiv.textContent = "正在上传...";
@@ -26,11 +27,13 @@ async function uploadSingle() {
 
     if (response.ok && data.success) {
       messageDiv.textContent = `上传成功！名称: ${data.name}`;
-      if (resultList) resultList.innerHTML = `<li>✅ <b>${data.name}</b></li>`;
+      if (resultList) {
+        resultList.innerHTML = `<li>✅ <b>${data.name}</b></li>`;
+      }
       nameInput.value = "";
       imageInput.value = "";
     } else {
-      messageDiv.textContent = `错误：${data.error || `HTTP ${response.status}`}`;
+      messageDiv.textContent = `错误：${data.error || response.status}`;
     }
   } catch (error) {
     messageDiv.textContent = `上传失败：${error.message}`;
@@ -42,9 +45,10 @@ async function uploadBatch() {
   const messageDiv = document.getElementById("message");
   const resultList = document.getElementById("resultList");
 
-  const files = Array.from(imageInput.files || []);
+  if (!imageInput || !messageDiv) return;
   if (resultList) resultList.innerHTML = "";
 
+  const files = Array.from(imageInput.files || []);
   if (files.length === 0) {
     messageDiv.textContent = "请选择图片（可多选）！";
     return;
@@ -71,7 +75,7 @@ async function uploadBatch() {
 
       const formData = new FormData();
       formData.append("source", f);
-      formData.append("name", name); // 批量时自动用文件名当 name
+      formData.append("name", name);
 
       messageDiv.textContent = `批量上传中 ${i + 1}/${files.length}: ${f.name}`;
 
@@ -85,7 +89,7 @@ async function uploadBatch() {
       if (response.ok && data.success) {
         addResult(true, data.name || name, data.url || "");
       } else {
-        addResult(false, name, data.error || `HTTP ${response.status}`);
+        addResult(false, name, data.error || response.status);
       }
     }
 
@@ -96,51 +100,8 @@ async function uploadBatch() {
   }
 }
 
-  messageDiv.textContent = "开始上传...";
-  try {
-    // ✅ 串行逐个上传（最稳，不容易超时/被服务限制）
-    for (let i = 0; i < files.length; i++) {
-      const f = files[i];
-
-      // 批量：默认用文件名；单张：用手填
-      let name = manualName;
-      if (files.length > 1) {
-        name = useFilename.checked ? filenameToName(f.name) : (manualName || filenameToName(f.name));
-      }
-
-      const formData = new FormData();
-      formData.append("source", f);   // 你的后端字段名是 source
-      formData.append("name", name);  // 批量也会传一个 name（后端会做唯一化）
-
-      messageDiv.textContent = `正在上传 ${i + 1}/${files.length}: ${f.name}`;
-
-      const response = await fetch("/api/upload", {
-        method: "POST",
-        body: formData,
-      });
-
-      const data = await response.json().catch(() => ({}));
-
-      if (response.ok && data.success) {
-        // 你当前后端单张只回 name；如果你按我建议加了 url，则这里也能显示 url
-        addResult(true, data.name || name, data.url || "");
-      } else {
-        addResult(false, name, data.error || `HTTP ${response.status}`);
-      }
-    }
-
-    messageDiv.textContent = `上传完成：${files.length}/${files.length}`;
-    nameInput.value = "";
-    imageInput.value = "";
-  } catch (error) {
-    messageDiv.textContent = `上传失败：${error.message}`;
-  }
-}
-
 /* ===== 随机背景（接口版）===== */
 (function () {
-
-  // 👇👇👇 把你的「随机图片 URL」填在这里
   const randomImageURL = "https://www.loliapi.com/acg/";
 
   document.body.style.backgroundImage = `
@@ -155,5 +116,4 @@ async function uploadBatch() {
   document.body.style.backgroundPosition = "center";
   document.body.style.backgroundRepeat = "no-repeat";
   document.body.style.backgroundAttachment = "fixed";
-
 })();
