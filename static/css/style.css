@@ -1,16 +1,245 @@
-/* 两个按钮横排 */
+/* ========== ACG / 二次元风格 UI（稳定版） ========== */
+:root{
+  --bg1:#ffe9f6;
+  --bg2:#e9f1ff;
+  --bg3:#eafff7;
+
+  --card: rgba(255,255,255,.72);
+  --border: rgba(255,255,255,.55);
+  --shadow: 0 18px 40px rgba(35, 50, 90, .12);
+
+  --text:#2b2d3a;
+  --muted:#6b6f86;
+
+  --p1:#ff6bd6;
+  --p2:#7c6bff;
+  --p3:#39d5ff;
+
+  --radius: 22px;
+}
+
+/* Reset */
+*{ margin:0; padding:0; box-sizing:border-box; }
+
+body{
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", "PingFang SC",
+               "Hiragino Sans GB", "Microsoft YaHei", Arial, sans-serif;
+  color: var(--text);
+  min-height:100vh;
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  padding: 18px;
+
+  /* 如果 JS 背景图没加载，这个渐变兜底 */
+  background:
+    radial-gradient(900px 600px at 12% 18%, rgba(255,107,214,.25), transparent 60%),
+    radial-gradient(800px 520px at 85% 20%, rgba(57,213,255,.20), transparent 55%),
+    radial-gradient(900px 650px at 55% 92%, rgba(124,107,255,.18), transparent 60%),
+    linear-gradient(135deg, var(--bg1), var(--bg2), var(--bg3));
+}
+
+/* 卡片容器：玻璃拟态 + 软阴影 */
+.container{
+  width:100%;
+  max-width:520px;
+  padding: 26px 22px;
+  border-radius: var(--radius);
+  background: var(--card);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  position: relative;
+  overflow: hidden;
+}
+
+/* 卡片顶部装饰 */
+.container::before{
+  content:"";
+  position:absolute;
+  inset:-120px -120px auto auto;
+  width: 260px;
+  height: 260px;
+  background: radial-gradient(circle at 30% 30%, rgba(255,107,214,.35), transparent 60%),
+              radial-gradient(circle at 70% 60%, rgba(57,213,255,.28), transparent 55%),
+              radial-gradient(circle at 40% 80%, rgba(124,107,255,.25), transparent 60%);
+  transform: rotate(12deg);
+  pointer-events:none;
+}
+
+h1{
+  text-align:center;
+  margin-bottom: 18px;
+  font-size: 24px;
+  letter-spacing: .5px;
+  line-height: 1.2;
+  background: linear-gradient(90deg, var(--p1), var(--p2), var(--p3));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  text-shadow: 0 10px 22px rgba(124,107,255,.10);
+}
+
+.form-group{ margin-bottom: 14px; }
+
+label{
+  display:block;
+  margin-bottom: 6px;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+/* 输入框 */
+input[type="text"],
+input[type="file"]{
+  width:100%;
+  padding: 12px 12px;
+  border-radius: 14px;
+  border: 1px solid rgba(140,160,210,.28);
+  background: rgba(255,255,255,.78);
+  color: var(--text);
+  font-size: 14px;
+  outline: none;
+  transition: transform .15s ease, box-shadow .2s ease, border-color .2s ease;
+}
+
+input[type="text"]::placeholder{
+  color: rgba(107,111,134,.65);
+}
+
+input[type="text"]:focus,
+input[type="file"]:focus{
+  border-color: rgba(124,107,255,.55);
+  box-shadow:
+    0 0 0 4px rgba(124,107,255,.16),
+    0 10px 26px rgba(57,213,255,.10);
+  transform: translateY(-1px);
+}
+
+/* 文件按钮（WebKit） */
+input[type="file"]::-webkit-file-upload-button{
+  border: none;
+  padding: 10px 12px;
+  border-radius: 12px;
+  margin-right: 10px;
+  cursor: pointer;
+  color: #fff;
+  background: linear-gradient(90deg, var(--p2), var(--p3));
+  box-shadow: 0 10px 18px rgba(57,213,255,.18);
+  transition: transform .15s ease, filter .2s ease;
+}
+input[type="file"]::-webkit-file-upload-button:hover{
+  filter: brightness(1.05);
+  transform: translateY(-1px);
+}
+
+/* 按钮行 */
 .btn-row{
   display:flex;
   gap:12px;
   justify-content:center;
 }
-.btn-row .upload-btn{
-  width:100%;
+
+/* 主按钮 */
+button.upload-btn{
   flex: 1;
+  border: none;
+  border-radius: 16px;
+  padding: 13px 18px;
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: .4px;
+  cursor: pointer;
+  color: #fff;
+
+  background: linear-gradient(90deg, var(--p1), var(--p2), var(--p3));
+  box-shadow:
+    0 16px 28px rgba(124,107,255,.20),
+    0 10px 18px rgba(255,107,214,.12);
+  transition: transform .12s ease, filter .2s ease, box-shadow .2s ease;
 }
 
-/* 只是提示，不可填写 */
-.name-hint {
+button.upload-btn:hover{
+  filter: brightness(1.05) saturate(1.05);
+  transform: translateY(-2px);
+  box-shadow:
+    0 18px 32px rgba(124,107,255,.24),
+    0 12px 22px rgba(57,213,255,.14);
+}
+
+button.upload-btn:active{
+  transform: translateY(0px) scale(.99);
+}
+
+/* 消息提示 */
+#message{
+  margin-top: 14px;
+  text-align:center;
+  font-size: 14px;
+  color: var(--text);
+}
+
+/* 结果列表 */
+#resultList{
+  margin-top: 10px;
+  padding-left: 0;
+  list-style: none;
+}
+#resultList li{
+  margin-top: 6px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: rgba(255,255,255,.55);
+  border: 1px solid rgba(140,160,210,.18);
+  font-size: 13px;
+}
+
+/* 链接区 */
+.centered-link{
+  margin-top: 18px;
+  text-align:center;
+  display:flex;
+  justify-content:center;
+  gap:10px;
+  flex-wrap: wrap;
+}
+
+.centered-link a{
+  text-decoration:none;
+  font-size: 14px;
+  color: rgba(43,45,58,.92);
+  padding: 8px 10px;
+  border-radius: 999px;
+  background: rgba(255,255,255,.55);
+  border: 1px solid rgba(140,160,210,.22);
+  transition: transform .12s ease, box-shadow .2s ease, background .2s ease;
+}
+
+.centered-link a:hover{
+  transform: translateY(-1px);
+  background: rgba(255,255,255,.75);
+  box-shadow: 0 10px 18px rgba(35,50,90,.10);
+}
+
+/* 说明小字 */
+.hint-text{
+  margin-top: 10px;
+  text-align:center;
+  font-size: 11px;
+  color: rgba(107,111,134,.85);
+}
+
+/* 图标 */
+.github-icon{
+  width: 20px;
+  height: 20px;
+  margin-right: 6px;
+  vertical-align: middle;
+}
+
+/* 提示块（不可输入） */
+.name-hint{
   font-size: 14px;
   color: #888;
   background: rgba(255,255,255,.55);
@@ -57,4 +286,54 @@
   color: rgba(107,111,134,.75);
   font-size: 12px;
   white-space: nowrap;
+}
+
+/* 进度条 */
+.progress-wrap{
+  margin-top: 14px;
+  padding: 12px 12px;
+  background: rgba(255,255,255,.65);
+  border: 1px solid rgba(140,160,210,.22);
+  border-radius: 14px;
+}
+
+.progress-top{
+  display:flex;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 13px;
+  color: rgba(43,45,58,.9);
+  margin-bottom: 8px;
+}
+
+.progress-file{
+  max-width: 70%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: rgba(107,111,134,.9);
+}
+
+.progress-bar{
+  width:100%;
+  height: 10px;
+  border-radius: 999px;
+  background: rgba(140,160,210,.18);
+  overflow:hidden;
+}
+
+.progress-fill{
+  height:100%;
+  width:0%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--p1), var(--p2), var(--p3));
+  transition: width .18s ease;
+}
+
+/* 响应式 */
+@media (max-width: 600px){
+  .container{ padding: 20px 16px; border-radius: 20px; }
+  h1{ font-size: 20px; }
+  button.upload-btn{ padding: 12px 14px; font-size: 15px; }
+  input[type="text"], input[type="file"]{ padding: 11px 11px; font-size: 13px; }
 }
