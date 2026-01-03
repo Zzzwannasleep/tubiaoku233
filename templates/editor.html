@@ -83,9 +83,35 @@
         <div class="panel-hint">圆形导出会自动做透明圆形遮罩</div>
       </div>
 
-      <!-- ✅ 一键上传到图标库 -->
+      
+<!-- ✅ AI 抠图（默认双通道 + 自定义模式2） -->
+<div class="panel-block">
+  <div class="panel-title">6) AI 抠图（去背景透明）</div>
+  <div class="btn-col">
+    <button class="tool-btn" id="btnAICutoutDefault">默认AI抠图（Clipdrop + remove.bg 自动均衡）</button>
+
+    {% if custom_ai_enabled %}
+    <button class="tool-btn" id="btnUnlockCustomAI">解锁自定义AI（需要密码）</button>
+    <button class="tool-btn" id="btnAICutoutCustom" style="display:none;">自定义AI抠图（已解锁）</button>
+    {% endif %}
+  </div>
+  <div id="aiMsg" class="upload-msg"></div>
+
+  {% if custom_ai_enabled %}
+  <div class="panel-hint">
+    自定义AI已启用：需要在 Vercel 环境变量配置 CUSTOM_AI_URL / CUSTOM_AI_FILE_FIELD（可选：CUSTOM_AI_API_KEY）。<br/>
+    提示：解锁密码为 CUSTOM_AI_PASSWORD。
+  </div>
+  {% else %}
+  <div class="panel-hint">
+    你当前仅启用默认AI（如需自定义AI：设置 CUSTOM_AI_ENABLED=1）。
+  </div>
+  {% endif %}
+</div>
+
+<!-- ✅ 一键上传到图标库 -->
       <div class="panel-block">
-        <div class="panel-title">6) 一键上传到图标库</div>
+        <div class="panel-title">7) 一键上传到图标库</div>
 
         <label class="panel-label" for="uploadName">名称（可不填）</label>
         <input id="uploadName" type="text" placeholder="不填则自动用文件名/默认名">
@@ -146,6 +172,6 @@
   <script src="https://cdn.jsdelivr.net/npm/fabric@5.3.0/dist/fabric.min.js"></script>
 
   <!-- 编辑页逻辑 -->
-  <script src="{{ url_for('static', filename='js/editor.js') }}?v=editor_upload_2"></script>
+  <script src="{{ url_for('static', filename='js/editor.js') }}?v=editor_upload_ai_1"></script>
 </body>
 </html>
