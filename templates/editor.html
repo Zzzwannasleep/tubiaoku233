@@ -1,18 +1,16 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>图标在线编辑</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-  <!-- 复用你首页 ACG 主样式（可选但推荐） -->
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=editor_upload_1">
+  <title>图标在线编辑———Zzzの图标库</title>
 
-  <!-- 编辑页专用样式 -->
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/editor.css') }}?v=editor_upload_1">
+  <!-- ✅ 统一使用上传页的网页图标 -->
+  <link rel="icon" href="{{ url_for('static', filename='favicon.png') }}" type="image/png">
 
-  <!-- Cropper.js（裁剪） -->
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/cropperjs@1.6.2/dist/cropper.min.css">
+  <!-- 编辑页样式 -->
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/editor.css') }}?v=editor_20260103">
 </head>
 
 <body class="editor-body">
@@ -61,8 +59,8 @@
       <div class="panel-block">
         <div class="panel-title">4) 导出预览</div>
         <div class="btn-col">
-          <button class="tool-btn" id="btnExportSquare">导出方形 PNG（512）</button>
-          <button class="tool-btn" id="btnExportCircle">导出圆形 PNG（512）</button>
+          <button class="tool-btn" id="btnExportSquare">导出方形 PNG</button>
+          <button class="tool-btn" id="btnExportCircle">导出圆形 PNG</button>
         </div>
         <div class="panel-hint">圆形导出会自动做透明圆形遮罩</div>
       </div>
@@ -80,8 +78,8 @@
         </div>
 
         <div class="btn-col">
-          <button class="tool-btn" id="btnUploadSquare">一键上传（方形 512 PNG）</button>
-          <button class="tool-btn" id="btnUploadCircle">一键上传（圆形 512 PNG）</button>
+          <button class="tool-btn" id="btnUploadSquare">一键上传</button>
+          <button class="tool-btn" id="btnUploadCircle">一键上传</button>
         </div>
 
         <div id="uploadMsg" class="upload-msg"></div>
