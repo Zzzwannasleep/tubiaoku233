@@ -15,16 +15,14 @@ serializer = URLSafeTimedSerializer(app.secret_key)
 CUSTOM_AI_ENABLED = os.getenv('CUSTOM_AI_ENABLED', '0').strip() == '1'
 CUSTOM_AI_PASSWORD = os.getenv('CUSTOM_AI_PASSWORD', '').strip()
 
-
-
 # PicGo API 配置
 PICGO_API_URL = "https://www.picgo.net/api/1/upload"
 PICGO_API_KEY = os.getenv("PICGO_API_KEY", "YOUR_API_KEY")  # 替换为你的 PicGo API 密钥
 
 # ImgURL API 配置
 IMGURL_API_URL = "https://www.imgurl.org/api/v2/upload"  # 默认为 imgurl.org，可替换为其他服务商
-IMGURL_API_UID = os.getenv("IMGURL_API_UID", "YOUR_API_UID")  # 从环境变量获取 ImgURL UID
-IMGURL_API_TOKEN = os.getenv("IMGURL_API_TOKEN", "YOUR_API_TOKEN")  # 从环境变量获取 ImgURL TOKEN
+IMGURL_API_UID = os.getenv("IMGURL_API_UID", "YOUR_IMGURL_UID")  # 从环境变量获取 ImgURL UID
+IMGURL_API_TOKEN = os.getenv("IMGURL_API_TOKEN", "YOUR_IMGURL_TOKEN")  # 从环境变量获取 ImgURL TOKEN
 
 # PICUI API 配置（强制 Token 模式）
 PICUI_UPLOAD_URL = "https://picui.cn/api/v1/upload"
@@ -40,194 +38,62 @@ GIST_FILE_NAME = "icons.json"
 if os.getenv("UPLOAD_SERVICE", "").upper() == "PICUI" and not PICUI_TOKEN:
     print("警告：UPLOAD_SERVICE=PICUI 但 PICUI_TOKEN 未配置，PICUI 上传将全部失败（强制 Token 模式）")
 
-
-@app.route("/")
-def home():
-    return render_template("index.html", github_user=GITHUB_USER, gist_id=GIST_ID)
-@app.route("/editor")
-def editor():
-    return render_template("editor.html", custom_ai_enabled=CUSTOM_AI_ENABLED)
+# ===== 新增：批量上传缓存 & Gist 读取/更新工具函数 =====
+uploaded_cache = []  # 用于批量上传时先缓存然后一次性写入 Gist
 
 
-@app.route("/api/upload", methods=["POST"])
-def upload_image():
-    try:
-        # ✅ 兼容单图 & 多图：前端字段名仍然用 source
-        images = request.files.getlist("source")
-        if not images:
-            return jsonify({"error": "缺少图片"}), 400
-
-        # name：单张上传时可以从表单拿；批量时可为空（用文件名）
-        raw_name = (request.form.get("name") or "").strip()
-
-        upload_service = os.getenv("UPLOAD_SERVICE", "PICGO").upper()
-
-        results = []
-        for image in images:
-            # 跳过空项（有些浏览器会塞空文件）
-            if not image or not getattr(image, "filename", ""):
-                continue
-
-            # ✅ 自动读取文件名作为 name（去扩展名）
-            auto_name = os.path.splitext(image.filename)[0]
-            name = raw_name or auto_name
-
-            # 根据环境变量决定使用哪个上传接口
-            if upload_service == "IMGURL":
-                image_url = upload_to_imgurl(image)
-
-            elif upload_service == "PICUI":
-                if not os.getenv("PICUI_TOKEN", "").strip():
-                    results.append({
-                        "ok": False,
-                        "name": name,
-                        "error": "PICUI_TOKEN 未配置，已启用强制 Token 上传模式"
-                    })
-                    continue
-                image_url = upload_to_picui(image)
-
-            else:
-                image_url = upload_to_picgo(image)
-
-            if not image_url:
-                results.append({
-                    "ok": False,
-                    "name": name,
-                    "error": f"图片上传失败（{upload_service}）"
-                })
-                continue
-
-            gist_result = update_gist(name, image_url)
-            if not gist_result["success"]:
-                results.append({
-                    "ok": False,
-                    "name": name,
-                    "error": gist_result["error"]
-                })
-                continue
-
-            results.append({
-                "ok": True,
-                "name": gist_result["name"],  # 这里可能被 get_unique_name 改名
-                "url": image_url
-            })
-
-        if not results:
-            return jsonify({"error": "没有可用的图片文件"}), 400
-
-        # ✅ 保持你原来的单图返回格式，避免前端兼容问题
-        if len(results) == 1:
-            r = results[0]
-            if r["ok"]:
-                return jsonify({"success": True, "name": r["name"]}), 200
-            return jsonify({"error": r["error"]}), 400
-
-        # ✅ 批量返回
-        return jsonify({"success": True, "results": results}), 200
-
-    except Exception as e:
-        return jsonify({"error": "服务器错误", "details": str(e)}), 500
-
-        # 更新 Gist
-        gist_result = update_gist(name, image_url)
-        if not gist_result["success"]:
-            return jsonify({"error": gist_result["error"]}), 400
-
-        return jsonify({"success": True, "name": gist_result["name"]}), 200
-
-    except Exception as e:
-        return jsonify({"error": "服务器错误", "details": str(e)}), 500
+def get_gist_data():
+    headers = {
+        "Authorization": f"Bearer {GITHUB_TOKEN}",
+        "Accept": "application/vnd.github.v3+json",
+    }
+    r = requests.get(f"https://api.github.com/gists/{GIST_ID}", headers=headers, timeout=30)
+    r.raise_for_status()
+    return r.json()
 
 
-def upload_to_picgo(image):
-    """使用 PicGo API 上传图片"""
-    form_data = {"source": (image.filename, image.stream, image.mimetype)}
+def update_gist_data(content):
+    """更新 Gist 数据（替换整个 icons.json 文件内容）"""
+    headers = {
+        "Authorization": f"Bearer {GITHUB_TOKEN}",
+        "Accept": "application/vnd.github.v3+json",
+    }
+    data = {"files": {GIST_FILE_NAME: {"content": json.dumps(content, indent=2)}}}
+    response = requests.patch(f"https://api.github.com/gists/{GIST_ID}", json=data, headers=headers, timeout=30)
+    if response.status_code != 200:
+        raise Exception(f"更新 Gist 失败：{response.text}")
+    return response.json()
+
+
+# ===== 上传实现（更稳健的网络调用：超时 & raise_for_status） =====
+
+def upload_to_picgo(img):
     headers = {"X-API-Key": PICGO_API_KEY}
-    upload_response = requests.post(PICGO_API_URL, files=form_data, headers=headers)
-
-    if upload_response.status_code != 200:
-        if upload_response.headers.get('Content-Type', '').startswith('application/json'):
-            try:
-                err = upload_response.json()
-                print(f"PicGo 上传失败: {err}")
-            except:
-                print(f"PicGo 上传失败: {upload_response.text}")
-        else:
-            print(f"PicGo 上传失败: {upload_response.text}")
-        return None
-
-    upload_data = upload_response.json()
-
-    # 更稳的写法：避免 image 为 None 导致 .get 报错
-    img = upload_data.get("image") or {}
-    return img.get("url")
+    files = {"source": (img.filename, img.stream, img.mimetype)}
+    r = requests.post(PICGO_API_URL, files=files, headers=headers, timeout=30)
+    r.raise_for_status()
+    j = r.json()
+    return (j.get("image") or {}).get("url", None)
 
 
-def upload_to_imgurl(image):
-    """使用 ImgURL API 上传图片"""
-    # 准备表单数据
-    form_data = {
-        'uid': IMGURL_API_UID,
-        'token': IMGURL_API_TOKEN
-    }
-
-    # 如果设置了相册ID，也添加进去
-    album_id = os.getenv("IMGURL_ALBUM_ID")
-    if album_id and str(album_id).strip():
-        form_data['album_id'] = album_id
-
-    files = {
-        'file': (image.filename, image.stream, image.mimetype)
-    }
-
-    print(f"准备上传数据: uid={IMGURL_API_UID}, token={'*' * len(IMGURL_API_TOKEN)}, album_id={album_id}")
-
-    try:
-        upload_response = requests.post(IMGURL_API_URL, data=form_data, files=files)
-
-        print(f"HTTP状态码: {upload_response.status_code}")
-        print(f"响应内容: {upload_response.text}")
-
-        if upload_response.status_code != 200:
-            print(f"ImgURL 上传失败，HTTP状态码: {upload_response.status_code}, 响应: {upload_response.text}")
-            return None
-
-        try:
-            upload_data = upload_response.json()
-
-            if isinstance(upload_data, dict) and 'code' in upload_data:
-                if upload_data['code'] != 200:
-                    print(f"ImgURL API 返回错误: {upload_data}")
-                    return None
-
-            if 'data' in upload_data and 'url' in upload_data['data']:
-                return upload_data['data']['url']
-            elif 'url' in upload_data:
-                return upload_data['url']
-            else:
-                print(f"ImgURL 响应格式异常: {upload_data}")
-                return None
-
-        except ValueError:
-            print(f"ImgURL 响应不是有效的 JSON: {upload_response.text}")
-            return None
-
-    except requests.exceptions.RequestException as e:
-        print(f"请求异常: {str(e)}")
-        return None
+def upload_to_imgurl(img):
+    form = {"uid": IMGURL_API_UID, "token": IMGURL_API_TOKEN}
+    files = {"file": (img.filename, img.stream, img.mimetype)}
+    r = requests.post(IMGURL_API_URL, data=form, files=files, timeout=30)
+    r.raise_for_status()
+    j = r.json()
+    # 一般返回 { code, data: { url } }
+    if "data" in j and "url" in j["data"]:
+        return j["data"]["url"]
+    if "url" in j:
+        return j["url"]
+    return None
 
 
+# 保持兼容：PICUI 上传实现（未改动业务逻辑）
 def upload_to_picui(image):
-    """
-    使用 PICUI API 上传图片（强制 Token 模式）
-    - 必须带 Authorization: Bearer <token>
-    - 上传接口: POST https://picui.cn/api/v1/upload
-    - 文件字段名: file
-    - 返回: data.links.url
-    """
     token = os.getenv("PICUI_TOKEN", "").strip()
     if not token:
-        # 理论上外层已经拦截，这里再加一次保险
         raise Exception("PICUI_TOKEN 为空：已启用强制 Token 上传模式，无法游客上传")
 
     headers = {
@@ -239,7 +105,6 @@ def upload_to_picui(image):
         "file": (image.filename, image.stream, image.mimetype)
     }
 
-    # 可选参数：默认私有 permission=0（你也可在环境变量设置为1公开）
     data = {}
 
     permission = os.getenv("PICUI_PERMISSION", "0").strip()
@@ -271,12 +136,10 @@ def upload_to_picui(image):
 
         j = r.json()
 
-        # PICUI 成功一般 status=True
         if not j.get("status"):
             print("PICUI 业务错误：", j)
             return None
 
-        # 正确解析图片 URL：data.links.url
         return j["data"]["links"]["url"]
 
     except Exception as e:
@@ -284,12 +147,8 @@ def upload_to_picui(image):
         return None
 
 
+# 名称去重逻辑（保留原来的实现，但更稳）
 def get_unique_name(name, json_content):
-    """
-    检查 json_content["icons"] 中是否已有名称为 name 的图标，
-    如果存在重复，则在名称后缀添加递增数字，直到不重复。
-    返回唯一名称。
-    """
     icons = json_content.get("icons", [])
     if not any(icon["name"] == name for icon in icons):
         return name
@@ -301,40 +160,23 @@ def get_unique_name(name, json_content):
     return f"{base_name}{counter}"
 
 
-def update_gist(name, url):
-    headers = {
-        "Authorization": f"Bearer {GITHUB_TOKEN}",
-        "Accept": "application/vnd.github.v3+json",
-    }
-
-    # 获取当前 Gist 内容
-    gist_response = requests.get(f"https://api.github.com/gists/{GIST_ID}", headers=headers)
-    if gist_response.status_code != 200:
-        return {"success": False, "error": "无法获取 Gist"}
-
-    gist_data = gist_response.json()
+# 批量上传合并提交
+def finalize_batch_update():
+    global uploaded_cache
+    if not uploaded_cache:
+        return {"success": False, "error": "没有批量上传内容"}
     try:
-        json_content = json.loads(gist_data["files"][GIST_FILE_NAME]["content"])
-    except:
-        json_content = {"name": "Forward", "description": "", "icons": []}
-
-    name = get_unique_name(name, json_content)
-
-    # 添加新图标
-    json_content["icons"].append({"name": name, "url": url})
-
-    # 更新 Gist
-    update_response = requests.patch(
-        f"https://api.github.com/gists/{GIST_ID}",
-        headers=headers,
-        json={"files": {GIST_FILE_NAME: {"content": json.dumps(json_content, indent=2)}}},
-    )
-
-    if update_response.status_code != 200:
-        return {"success": False, "error": "无法更新 Gist"}
-
-    return {"success": True, "name": name}
-
+        gist = get_gist_data()
+        icons_raw = gist.get("files", {}).get(GIST_FILE_NAME, {}).get("content", "{}")
+        content = json.loads(icons_raw) if isinstance(icons_raw, str) else icons_raw
+        for item in uploaded_cache:
+            name = get_unique_name(item["name"], content)
+            content.setdefault("icons", []).append({"name": name, "url": item["url"]})
+        update_gist_data(content)
+        uploaded_cache = []
+        return {"success": True}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
 
 
 # ===================== AI 抠图（默认双通道负载 + 自定义模式2） =====================
@@ -369,11 +211,6 @@ def call_removebg_remove_bg(image):
 
 
 def call_custom_remove_bg(image):
-    """
-    自定义AI转发（模式2：必须先解锁）：
-    约定：CUSTOM_AI_URL 返回透明 PNG（二进制，Content-Type: image/png）。
-    如果你的自定义服务返回 JSON(url)，需要改这里的解析逻辑。
-    """
     custom_url = os.getenv("CUSTOM_AI_URL", "").strip()
     if not custom_url:
         raise Exception("CUSTOM_AI_URL 未配置")
@@ -394,11 +231,107 @@ def call_custom_remove_bg(image):
     return r.content
 
 
+@app.route("/")
+def home():
+    return render_template("index.html", github_user=GITHUB_USER, gist_id=GIST_ID)
+
+
+@app.route("/editor")
+def editor():
+    return render_template("editor.html", custom_ai_enabled=CUSTOM_AI_ENABLED)
+
+
+@app.route("/api/upload", methods=["POST"])
+def upload_image():
+    try:
+        images = request.files.getlist("source")
+        if not images:
+            return jsonify({"error": "缺少图片"}), 400
+
+        raw_name = (request.form.get("name") or "").strip()
+        upload_service = os.getenv("UPLOAD_SERVICE", "PICGO").upper()
+
+        results = []
+        for image in images:
+            if not image or not getattr(image, "filename", ""):
+                continue
+
+            auto_name = os.path.splitext(image.filename)[0]
+            name = raw_name or auto_name
+
+            try:
+                if upload_service == "IMGURL":
+                    image_url = upload_to_imgurl(image)
+
+                elif upload_service == "PICUI":
+                    if not os.getenv("PICUI_TOKEN", "").strip():
+                        results.append({
+                            "ok": False,
+                            "name": name,
+                            "error": "PICUI_TOKEN 未配置，已启用强制 Token 上传模式"
+                        })
+                        continue
+                    image_url = upload_to_picui(image)
+
+                else:
+                    image_url = upload_to_picgo(image)
+
+            except Exception as e:
+                results.append({"ok": False, "name": name, "error": f"上传失败：{str(e)}"})
+                continue
+
+            if not image_url:
+                results.append({
+                    "ok": False,
+                    "name": name,
+                    "error": f"图片上传失败（{upload_service}）"
+                })
+                continue
+
+            # 将上传结果先缓存，使用 finalize_batch_update 在批量场景统一写入 Gist
+            uploaded_cache.append({"name": name, "url": image_url})
+
+            # 为了兼容原来的单图立即更新场景，仍然尝试立即更新一次（失败不阻塞批量提交）
+            try:
+                # 获取当前 gist 内容并更新（使用新的 update_gist_data 工具）
+                gist = get_gist_data()
+                icons_raw = gist.get("files", {}).get(GIST_FILE_NAME, {}).get("content", "{}")
+                content = json.loads(icons_raw) if isinstance(icons_raw, str) else icons_raw
+                unique = get_unique_name(name, content)
+                content.setdefault("icons", []).append({"name": unique, "url": image_url})
+                update_gist_data(content)
+                results.append({"ok": True, "name": unique, "url": image_url})
+            except Exception as e:
+                # 如果即时更新失败，保留在缓存等待 finalize_batch_update
+                results.append({"ok": True, "name": name, "url": image_url, "warning": f"Gist 更新失败，已缓存：{str(e)}"})
+
+        if not results:
+            return jsonify({"error": "没有可用的图片文件"}), 400
+
+        if len(results) == 1:
+            r = results[0]
+            if r.get("ok"):
+                return jsonify({"success": True, "name": r.get("name")}), 200
+            return jsonify({"error": r.get("error")}), 400
+
+        return jsonify({"success": True, "results": results}), 200
+
+    except Exception as e:
+        return jsonify({"error": "服务器错误", "details": str(e)}), 500
+
+
+@app.route("/api/finalize_batch", methods=["POST"])
+def api_finalize_batch():
+    """手动触发将缓存的批量上传写入 Gist（如果某些即时更新失败或想延后合并）"""
+    res = finalize_batch_update()
+    if res.get("success"):
+        return jsonify({"success": True}), 200
+    return jsonify({"error": res.get("error")}), 500
+
+
+# 原有 AI 抠图路由与逻辑保持不变
 @app.route("/api/ai_cutout", methods=["POST"])
 def api_ai_cutout_default():
-    """
-    默认AI抠图：Clipdrop + remove.bg 负载均衡（随机优先）+ 失败自动降级
-    """
     try:
         image = request.files.get("image")
         if not image:
@@ -432,7 +365,6 @@ def api_ai_cutout_default():
 
 @app.route("/api/ai/custom/auth", methods=["POST"])
 def api_custom_ai_auth():
-    """模式2：输入密码 -> 下发 HttpOnly Cookie，解锁自定义AI抠图"""
     if not CUSTOM_AI_ENABLED:
         return jsonify({"error": "自定义AI未启用（CUSTOM_AI_ENABLED!=1）"}), 403
 
@@ -447,7 +379,6 @@ def api_custom_ai_auth():
 
     token = serializer.dumps({"ok": 1})
     resp = jsonify({"success": True})
-    # 1天有效；HttpOnly 防止 JS 读取；secure=True 适配 https
     resp.set_cookie("custom_ai_auth", token, max_age=86400, httponly=True, samesite="Lax", secure=True)
     return resp
 
@@ -465,7 +396,6 @@ def _check_custom_ai_cookie():
 
 @app.route("/api/ai_cutout_custom", methods=["POST"])
 def api_ai_cutout_custom():
-    """自定义AI抠图：必须先 /api/ai/custom/auth 解锁"""
     try:
         if not CUSTOM_AI_ENABLED:
             return jsonify({"error": "自定义AI未启用（CUSTOM_AI_ENABLED!=1）"}), 403
