@@ -4,15 +4,25 @@ let originalFilenameBase = "icon";
 /* Cropper */
 let cropper = null;
 
-/* Cutout (native canvas erase) */
+/* Cutout (native canvas) */
 let cutCanvas = null;
 let cutCtx = null;
-let cutImg = null;              // Image()
+let cutImg = null;
+
 let cutIsDrawing = false;
 let cutBrushSize = 25;
-let cutHistory = [];            // dataURL stack (max 30)
+let cutBrushOpacity = 1.0;     // 0~1
+let cutBrushSoftness = 0.35;   // 0~1
+let cutMode = "erase";         // "erase" | "restore"
+let cutHistory = [];           // dataURL stack (max 30)
 
-/* Utils */
+// 图片绘制在 canvas 的映射信息（用于恢复画笔精确从原图取像素）
+let drawMap = {
+  dx: 0, dy: 0, dw: 0, dh: 0,
+  scale: 1,
+  iw: 0, ih: 0
+};
+
 const el = (id) => document.getElementById(id);
 
 function showOnly(which) {
@@ -57,9 +67,7 @@ function initCropper(imgEl) {
     cropBoxMovable: true,
     cropBoxResizable: true,
 
-    // 更像“框选裁剪”
-    dragMode: "none",
-
+    dragMode: "none",  // 更像“框选裁剪”
     guides: true,
     center: true,
     highlight: true,
@@ -74,7 +82,6 @@ function initCropper(imgEl) {
   });
 }
 
-/* 裁剪工具按钮 */
 function cropBoxCenter() {
   if (!cropper) return;
   const data = cropper.getData(true);
@@ -88,7 +95,6 @@ function cropBoxMax() {
   if (!cropper) return;
   cropper.reset();
   cropper.setAspectRatio(1);
-  // 让裁剪框大一点（会被 cropper 自动约束）
   cropper.setCropBoxData({ width: 420, height: 420 });
 }
 
@@ -107,7 +113,7 @@ function viewReset() {
   cropper.reset();
 }
 
-/* ========== Native Cutout (Eraser) ========== */
+/* ========== Cutout (erase / restore) ========== */
 
 function initCutoutCanvas(imgURL) {
   cutCanvas = el("cutoutCanvas");
@@ -123,34 +129,74 @@ function initCutoutCanvas(imgURL) {
   cutCtx = cutCanvas.getContext("2d", { willReadFrequently: true });
   cutCtx.clearRect(0, 0, w, h);
 
-  // 加载图片
   cutImg = new Image();
   cutImg.crossOrigin = "anonymous";
+
   cutImg.onload = () => {
     // 画到画布中心（contain）
-    cutCtx.clearRect(0, 0, w, h);
-    cutCtx.globalCompositeOperation = "source-over";
-
     const scale = Math.min(w / cutImg.width, h / cutImg.height);
     const dw = cutImg.width * scale;
     const dh = cutImg.height * scale;
     const dx = (w - dw) / 2;
     const dy = (h - dh) / 2;
 
+    drawMap = {
+      dx, dy, dw, dh,
+      scale,
+      iw: cutImg.width,
+      ih: cutImg.height
+    };
+
+    cutCtx.clearRect(0, 0, w, h);
+    cutCtx.globalCompositeOperation = "source-over";
+    cutCtx.globalAlpha = 1;
     cutCtx.drawImage(cutImg, dx, dy, dw, dh);
 
-    // 初始化历史（用于撤销）
     cutHistory = [cutCanvas.toDataURL("image/png")];
   };
+
   cutImg.src = imgURL;
 
   bindCutoutEvents();
 }
 
+function setMode(mode) {
+  cutMode = mode === "restore" ? "restore" : "erase";
+
+  // 按钮视觉：简单做个“按下态”
+  const eraseBtn = el("btnBrushErase");
+  const restoreBtn = el("btnBrushRestore");
+  if (eraseBtn && restoreBtn) {
+    if (cutMode === "erase") {
+      eraseBtn.style.filter = "brightness(1.08)";
+      restoreBtn.style.filter = "";
+    } else {
+      restoreBtn.style.filter = "brightness(1.08)";
+      eraseBtn.style.filter = "";
+    }
+  }
+}
+
+function updateBrushUI() {
+  // size
+  const s = Number(el("brushSize")?.value || 25);
+  cutBrushSize = s;
+  if (el("brushSizeText")) el("brushSizeText").textContent = String(s);
+
+  // opacity
+  const o = Number(el("brushOpacity")?.value || 100);
+  cutBrushOpacity = Math.min(1, Math.max(0.1, o / 100));
+  if (el("brushOpacityText")) el("brushOpacityText").textContent = String(o);
+
+  // softness
+  const soft = Number(el("brushSoftness")?.value || 35);
+  cutBrushSoftness = Math.min(0.8, Math.max(0, soft / 100));
+  if (el("brushSoftnessText")) el("brushSoftnessText").textContent = String(soft);
+}
+
 function bindCutoutEvents() {
   if (!cutCanvas) return;
 
-  // 防止重复绑定：先清理（用替换 handler 的方式）
   cutCanvas.onpointerdown = null;
   cutCanvas.onpointermove = null;
   window.onpointerup = null;
@@ -159,19 +205,18 @@ function bindCutoutEvents() {
     if (!cutCtx) return;
     cutIsDrawing = true;
     cutCanvas.setPointerCapture?.(e.pointerId);
-    eraseAtEvent(e);
+    drawAtEvent(e, getEffectiveMode(e));
   };
 
   cutCanvas.onpointermove = (e) => {
     if (!cutIsDrawing) return;
-    eraseAtEvent(e);
+    drawAtEvent(e, getEffectiveMode(e));
   };
 
   window.onpointerup = () => {
     if (!cutIsDrawing) return;
     cutIsDrawing = false;
 
-    // 结束一次绘制，保存历史
     if (cutCanvas) {
       cutHistory.push(cutCanvas.toDataURL("image/png"));
       if (cutHistory.length > 30) cutHistory.shift();
@@ -179,23 +224,114 @@ function bindCutoutEvents() {
   };
 }
 
-function eraseAtEvent(e) {
+// 按住 Alt 临时恢复画笔
+function getEffectiveMode(e) {
+  if (e && e.altKey) return "restore";
+  return cutMode;
+}
+
+function getCanvasXY(e) {
   const rect = cutCanvas.getBoundingClientRect();
   const x = (e.clientX - rect.left) * (cutCanvas.width / rect.width);
   const y = (e.clientY - rect.top) * (cutCanvas.height / rect.height);
-
-  cutCtx.save();
-  cutCtx.globalCompositeOperation = "destination-out"; // ✅ 擦除
-  cutCtx.beginPath();
-  cutCtx.arc(x, y, cutBrushSize / 2, 0, Math.PI * 2);
-  cutCtx.fill();
-  cutCtx.restore();
+  return { x, y };
 }
 
-function updateBrushSizeUI() {
-  const v = Number(el("brushSize").value || 25);
-  el("brushSizeText").textContent = String(v);
-  cutBrushSize = v;
+function makeSoftCircleMask(ctx, r) {
+  // 软边：中心 alpha=1，边缘 alpha=0
+  const inner = Math.max(0, r * (1 - cutBrushSoftness));
+  const g = ctx.createRadialGradient(0, 0, inner, 0, 0, r);
+  g.addColorStop(0, `rgba(0,0,0,${cutBrushOpacity})`);
+  g.addColorStop(1, "rgba(0,0,0,0)");
+  return g;
+}
+
+function drawAtEvent(e, mode) {
+  if (!cutCtx || !cutCanvas) return;
+  if (!cutImg) return;
+
+  const { x, y } = getCanvasXY(e);
+  const r = Math.max(2, cutBrushSize / 2);
+
+  // 只在图片区域附近操作（可选：你也可以去掉）
+  // if (x < drawMap.dx || x > drawMap.dx + drawMap.dw || y < drawMap.dy || y > drawMap.dy + drawMap.dh) return;
+
+  if (mode === "erase") {
+    // ✅ 擦除（destination-out）
+    cutCtx.save();
+    cutCtx.globalCompositeOperation = "destination-out";
+
+    // 用软边蒙版
+    cutCtx.translate(x, y);
+    cutCtx.fillStyle = makeSoftCircleMask(cutCtx, r);
+    cutCtx.beginPath();
+    cutCtx.arc(0, 0, r, 0, Math.PI * 2);
+    cutCtx.fill();
+
+    cutCtx.restore();
+  } else {
+    // ✅ 恢复：从原图把该区域“画回来”
+    restoreFromOriginal(x, y, r);
+  }
+}
+
+function restoreFromOriginal(cx, cy, r) {
+  if (!cutCtx || !cutCanvas || !cutImg) return;
+
+  // 如果点在图片外，直接不恢复
+  const inside =
+    cx >= drawMap.dx && cx <= drawMap.dx + drawMap.dw &&
+    cy >= drawMap.dy && cy <= drawMap.dy + drawMap.dh;
+  if (!inside) return;
+
+  // 计算该点对应原图像素坐标
+  const scale = drawMap.scale || 1;
+  const ox = (cx - drawMap.dx) / scale; // original x
+  const oy = (cy - drawMap.dy) / scale;
+
+  // 在原图中取一个正方形区域（对应画笔）
+  const or = r / scale; // 原图半径
+  const sw = Math.ceil(or * 2);
+  const sh = Math.ceil(or * 2);
+
+  const sx = Math.floor(ox - or);
+  const sy = Math.floor(oy - or);
+
+  // ✅ 用临时 canvas：画原图小块 + 用软边圆形蒙版裁出来
+  const temp = document.createElement("canvas");
+  temp.width = sw;
+  temp.height = sh;
+  const tctx = temp.getContext("2d");
+
+  // 画原图块（注意边界）
+  tctx.clearRect(0, 0, sw, sh);
+  tctx.globalCompositeOperation = "source-over";
+  tctx.globalAlpha = 1;
+
+  // drawImage 会自动处理超出区域（空白）
+  tctx.drawImage(cutImg, sx, sy, sw, sh, 0, 0, sw, sh);
+
+  // 叠蒙版（destination-in）
+  tctx.globalCompositeOperation = "destination-in";
+  tctx.translate(sw / 2, sh / 2);
+
+  const rr = sw / 2;
+  const inner = Math.max(0, rr * (1 - cutBrushSoftness));
+  const g = tctx.createRadialGradient(0, 0, inner, 0, 0, rr);
+  g.addColorStop(0, `rgba(0,0,0,${cutBrushOpacity})`);
+  g.addColorStop(1, "rgba(0,0,0,0)");
+
+  tctx.fillStyle = g;
+  tctx.beginPath();
+  tctx.arc(0, 0, rr, 0, Math.PI * 2);
+  tctx.fill();
+
+  // 把临时结果贴回主画布对应位置
+  cutCtx.save();
+  cutCtx.globalCompositeOperation = "source-over";
+  cutCtx.globalAlpha = 1;
+  cutCtx.drawImage(temp, cx - r, cy - r, r * 2, r * 2);
+  cutCtx.restore();
 }
 
 function undoOneStep() {
@@ -207,12 +343,13 @@ function undoOneStep() {
   img.onload = () => {
     cutCtx.clearRect(0, 0, cutCanvas.width, cutCanvas.height);
     cutCtx.globalCompositeOperation = "source-over";
+    cutCtx.globalAlpha = 1;
     cutCtx.drawImage(img, 0, 0);
   };
   img.src = prev;
 }
 
-/* ========== Load File ========== */
+/* ========== Load file ========== */
 
 function loadFile(file) {
   clearExportPreview();
@@ -223,7 +360,6 @@ function loadFile(file) {
   if (currentImageURL) URL.revokeObjectURL(currentImageURL);
   currentImageURL = URL.createObjectURL(file);
 
-  // 默认进入裁剪
   showOnly("crop");
 
   const cropImg = el("cropImage");
@@ -231,7 +367,7 @@ function loadFile(file) {
   cropImg.src = currentImageURL;
 }
 
-/* ========== Export (Square / Circle 512) ========== */
+/* ========== Export ========== */
 
 function getCropCanvas512() {
   if (!cropper) return null;
@@ -342,7 +478,7 @@ async function exportCircle() {
   setExportPreview(b);
 }
 
-/* ========== Upload to Library ========== */
+/* ========== Upload ========== */
 
 function getUploadName() {
   const manual = (el("uploadName").value || "").trim();
@@ -388,13 +524,12 @@ async function uploadCircleToLibrary() {
   await uploadBlobToLibrary(b, name, "_circle");
 }
 
-/* ========== Mode Switch ========== */
+/* ========== Mode switch ========== */
 
 function switchToCropMode() {
   clearExportPreview();
   el("uploadMsg").textContent = "";
   showOnly("crop");
-
   if (el("cropImage").src) initCropper(el("cropImage"));
 }
 
@@ -425,11 +560,12 @@ function resetAll() {
   cutImg = null;
   cutIsDrawing = false;
   cutHistory = [];
+  drawMap = { dx:0, dy:0, dw:0, dh:0, scale:1, iw:0, ih:0 };
 
   showOnly("empty");
 }
 
-/* ========== ✅ 编辑页随机背景 + 点击切换下一张 ========== */
+/* ========== Background switch ========== */
 (function () {
   const randomImageURL = "https://www.loliapi.com/acg/";
   const body = document.body;
@@ -472,39 +608,52 @@ function resetAll() {
   }, { passive: true });
 })();
 
-/* ========== Bind Events ========== */
+/* ========== Bind events ========== */
 
 window.addEventListener("DOMContentLoaded", () => {
   showOnly("empty");
 
-  el("fileInput").addEventListener("change", (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    loadFile(file);
-  });
+  // 防止某些页面没有这些控件导致报错：都做存在性判断
+  const fileInput = el("fileInput");
+  if (fileInput) {
+    fileInput.addEventListener("change", (e) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      loadFile(file);
+    });
+  }
 
-  el("btnModeCrop").addEventListener("click", switchToCropMode);
-  el("btnModeCutout").addEventListener("click", switchToCutoutMode);
+  el("btnModeCrop")?.addEventListener("click", switchToCropMode);
+  el("btnModeCutout")?.addEventListener("click", switchToCutoutMode);
 
-  // 裁剪工具
-  el("btnCropCenter").addEventListener("click", cropBoxCenter);
-  el("btnCropMax").addEventListener("click", cropBoxMax);
-  el("btnZoomIn").addEventListener("click", zoomIn);
-  el("btnZoomOut").addEventListener("click", zoomOut);
-  el("btnViewReset").addEventListener("click", viewReset);
+  // crop tools
+  el("btnCropCenter")?.addEventListener("click", cropBoxCenter);
+  el("btnCropMax")?.addEventListener("click", cropBoxMax);
+  el("btnZoomIn")?.addEventListener("click", zoomIn);
+  el("btnZoomOut")?.addEventListener("click", zoomOut);
+  el("btnViewReset")?.addEventListener("click", viewReset);
 
-  // 抠图画笔
-  el("brushSize").addEventListener("input", updateBrushSizeUI);
-  updateBrushSizeUI();
-  el("btnUndo").addEventListener("click", undoOneStep);
+  // cutout tools
+  el("btnBrushErase")?.addEventListener("click", () => setMode("erase"));
+  el("btnBrushRestore")?.addEventListener("click", () => setMode("restore"));
 
-  // 导出
-  el("btnExportSquare").addEventListener("click", exportSquare);
-  el("btnExportCircle").addEventListener("click", exportCircle);
+  el("brushSize")?.addEventListener("input", updateBrushUI);
+  el("brushOpacity")?.addEventListener("input", updateBrushUI);
+  el("brushSoftness")?.addEventListener("input", updateBrushUI);
+  updateBrushUI();
 
-  // 上传
-  el("btnUploadSquare").addEventListener("click", uploadSquareToLibrary);
-  el("btnUploadCircle").addEventListener("click", uploadCircleToLibrary);
+  el("btnUndo")?.addEventListener("click", undoOneStep);
 
-  el("btnReset").addEventListener("click", resetAll);
+  // export
+  el("btnExportSquare")?.addEventListener("click", exportSquare);
+  el("btnExportCircle")?.addEventListener("click", exportCircle);
+
+  // upload
+  el("btnUploadSquare")?.addEventListener("click", uploadSquareToLibrary);
+  el("btnUploadCircle")?.addEventListener("click", uploadCircleToLibrary);
+
+  el("btnReset")?.addEventListener("click", resetAll);
+
+  // 默认模式：橡皮擦
+  setMode("erase");
 });
