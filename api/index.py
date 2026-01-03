@@ -34,7 +34,9 @@ if os.getenv("UPLOAD_SERVICE", "").upper() == "PICUI" and not PICUI_TOKEN:
 @app.route("/")
 def home():
     return render_template("index.html", github_user=GITHUB_USER, gist_id=GIST_ID)
-
+@app.route("/editor")
+def editor():
+    return render_template("editor.html")            
 
 @app.route("/api/upload", methods=["POST"])
 def upload_image():
