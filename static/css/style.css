@@ -139,10 +139,11 @@ input[type="file"]::-webkit-file-upload-button:hover{
   display:flex;
   gap:12px;
   justify-content:center;
+  align-items:center;
 }
 
-/* 主按钮 */
-button.upload-btn{
+/* ✅ 主按钮（改成 .upload-btn，让 <a> 也吃到同款样式） */
+.upload-btn{
   flex: 1;
   border: none;
   border-radius: 16px;
@@ -160,7 +161,16 @@ button.upload-btn{
   transition: transform .12s ease, filter .2s ease, box-shadow .2s ease;
 }
 
-button.upload-btn:hover{
+/* ✅ 让 a.upload-btn 看起来跟按钮一样 */
+.link-btn{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  text-decoration:none;
+  user-select:none;
+}
+
+.upload-btn:hover{
   filter: brightness(1.05) saturate(1.05);
   transform: translateY(-2px);
   box-shadow:
@@ -168,7 +178,7 @@ button.upload-btn:hover{
     0 12px 22px rgba(57,213,255,.14);
 }
 
-button.upload-btn:active{
+.upload-btn:active{
   transform: translateY(0px) scale(.99);
 }
 
@@ -334,6 +344,10 @@ button.upload-btn:active{
 @media (max-width: 600px){
   .container{ padding: 20px 16px; border-radius: 20px; }
   h1{ font-size: 20px; }
-  button.upload-btn{ padding: 12px 14px; font-size: 15px; }
+  .upload-btn{ padding: 12px 14px; font-size: 15px; }
   input[type="text"], input[type="file"]{ padding: 11px 11px; font-size: 13px; }
+
+  /* 小屏三按钮可能太挤：允许换行（可选） */
+  .btn-row{ flex-wrap: wrap; }
+  .btn-row .upload-btn{ min-width: 150px; }
 }
