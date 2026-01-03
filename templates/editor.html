@@ -11,6 +11,9 @@
 
   <!-- 编辑页样式 -->
   <link rel="stylesheet" href="{{ url_for('static', filename='css/editor.css') }}?v=editor_20260103">
+
+  <!-- ✅ Cropper 必须的 CSS（没有它裁剪框会“不正常/不好用”） -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/cropperjs@1.6.2/dist/cropper.min.css">
 </head>
 
 <body class="editor-body">
@@ -40,13 +43,28 @@
           <button class="tool-btn" id="btnModeCutout">进入手动抠图模式（橡皮擦）</button>
         </div>
         <div class="panel-hint">
-          裁剪：拖动裁剪框，固定 1:1<br/>
+          裁剪：移动裁剪框，框住哪里就裁哪里（1:1）<br/>
           抠图：擦掉背景变透明
         </div>
       </div>
 
+      <!-- ✅ 裁剪增强：更像 PS 的操作 -->
       <div class="panel-block">
-        <div class="panel-title">3) 抠图画笔</div>
+        <div class="panel-title">3) 裁剪工具（像 PS）</div>
+        <div class="btn-col">
+          <button class="tool-btn" id="btnCropCenter">裁剪框居中</button>
+          <button class="tool-btn" id="btnCropMax">裁剪框最大化</button>
+          <button class="tool-btn" id="btnZoomIn">放大（+）</button>
+          <button class="tool-btn" id="btnZoomOut">缩小（-）</button>
+          <button class="tool-btn" id="btnViewReset">重置视图</button>
+        </div>
+        <div class="panel-hint">
+          小技巧：滚轮/双指也可以缩放图片；拖动裁剪框选择区域
+        </div>
+      </div>
+
+      <div class="panel-block">
+        <div class="panel-title">4) 抠图画笔</div>
         <label class="inline-row">
           画笔大小
           <input id="brushSize" type="range" min="5" max="80" value="25">
@@ -57,7 +75,7 @@
       </div>
 
       <div class="panel-block">
-        <div class="panel-title">4) 导出预览</div>
+        <div class="panel-title">5) 导出预览</div>
         <div class="btn-col">
           <button class="tool-btn" id="btnExportSquare">导出方形 PNG</button>
           <button class="tool-btn" id="btnExportCircle">导出圆形 PNG</button>
@@ -65,9 +83,9 @@
         <div class="panel-hint">圆形导出会自动做透明圆形遮罩</div>
       </div>
 
-      <!-- ✅ 一键上传到图标库（新增） -->
+      <!-- ✅ 一键上传到图标库 -->
       <div class="panel-block">
-        <div class="panel-title">5) 一键上传到图标库</div>
+        <div class="panel-title">6) 一键上传到图标库</div>
 
         <label class="panel-label" for="uploadName">名称（可不填）</label>
         <input id="uploadName" type="text" placeholder="不填则自动用文件名/默认名">
@@ -78,8 +96,8 @@
         </div>
 
         <div class="btn-col">
-          <button class="tool-btn" id="btnUploadSquare">一键上传</button>
-          <button class="tool-btn" id="btnUploadCircle">一键上传</button>
+          <button class="tool-btn" id="btnUploadSquare">一键上传（方形）</button>
+          <button class="tool-btn" id="btnUploadCircle">一键上传（圆形）</button>
         </div>
 
         <div id="uploadMsg" class="upload-msg"></div>
@@ -89,9 +107,10 @@
         <div class="panel-title">使用说明</div>
         <ol class="panel-ol">
           <li>先导入图片</li>
-          <li>裁剪模式：调整 1:1 裁剪框</li>
-          <li>抠图模式：擦掉背景（透明）</li>
+          <li>裁剪模式：移动裁剪框（1:1）框住你要的部分</li>
+          <li>抠图模式：擦掉背景变透明</li>
           <li>导出预览或直接一键上传</li>
+          <li>背景：点击空白背景切换下一张；Shift+点击任意位置也可切换</li>
         </ol>
       </div>
     </aside>
@@ -127,6 +146,6 @@
   <script src="https://cdn.jsdelivr.net/npm/fabric@5.3.0/dist/fabric.min.js"></script>
 
   <!-- 编辑页逻辑 -->
-  <script src="{{ url_for('static', filename='js/editor.js') }}?v=editor_upload_1"></script>
+  <script src="{{ url_for('static', filename='js/editor.js') }}?v=editor_upload_2"></script>
 </body>
 </html>
