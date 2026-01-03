@@ -1,10 +1,10 @@
 let currentImageURL = null;
 let originalFilenameBase = "icon";
 
-// Cropper
+/* Cropper */
 let cropper = null;
 
-// Fabric
+/* Fabric */
 let fCanvas = null;
 let historyStack = []; // 撤销栈：存 dataURL（最多 30）
 
@@ -34,71 +34,187 @@ function destroyCropper() {
   }
 }
 
-function initCropper(imgEl) {
-  destroyCropper();
-  cropper = new Cropper(imgEl, {
-    viewMode: 1,
-    aspectRatio: 1,     // 固定 1:1
-    dragMode: "move",
-    autoCropArea: 1,
-    background: false,
-    movable: true,
-    zoomable: true,
-    scalable: false,
-    rotatable: false,
-  });
-}
-
 function filenameToName(filename) {
   return filename.split(/[\\/]/).pop().replace(/\.[^.]+$/, "");
 }
+
+/* ========== ✅ 裁剪：更像 PS（框哪裁哪） ========== */
+
+function initCropper(imgEl) {
+  destroyCropper();
+
+  cropper = new Cropper(imgEl, {
+    aspectRatio: 1,        // ✅ 固定 1:1
+    viewMode: 1,
+    autoCrop: true,
+    autoCropArea: 0.65,    // ✅ 默认不要铺满，给你手动框选感觉
+
+    cropBoxMovable: true,
+    cropBoxResizable: true,
+
+    // ✅ 更像“框选裁剪”：主要移动裁剪框，缩放图片对齐
+    dragMode: "none",
+
+    guides: true,
+    center: true,
+    highlight: true,
+    background: false,
+
+    zoomOnWheel: true,
+    zoomable: true,
+
+    rotatable: false,
+    scalable: false,
+    movable: true,
+  });
+}
+
+/* 裁剪工具按钮 */
+function cropBoxCenter() {
+  if (!cropper) return;
+
+  const data = cropper.getData(true);
+  const imageData = cropper.getImageData();
+
+  // 让裁剪框居中（保持大小）
+  const newX = (imageData.naturalWidth - data.width) / 2;
+  const newY = (imageData.naturalHeight - data.height) / 2;
+
+  cropper.setData({ x: newX, y: newY, width: data.width, height: data.height });
+}
+
+function cropBoxMax() {
+  if (!cropper) return;
+
+  // 把裁剪框尽量放大到可视区域（仍保持 1:1）
+  // 这里用 autoCropArea 重置一次最稳
+  cropper.setAspectRatio(1);
+  cropper.crop();
+  cropper.setCropBoxData({ left: 0, top: 0 }); // 先一个触发
+  cropper.zoomTo(1); // 先回到 1
+  cropper.reset();
+  // reset 会回默认 crop box，这里再强制更大一点
+  cropper.setCropBoxData({ width: 360, height: 360 });
+}
+
+function zoomIn() {
+  if (!cropper) return;
+  cropper.zoom(0.08);
+}
+
+function zoomOut() {
+  if (!cropper) return;
+  cropper.zoom(-0.08);
+}
+
+function viewReset() {
+  if (!cropper) return;
+  cropper.reset();
+}
+
+/* ========== 抠图（Fabric 橡皮擦） ========== */
 
 function initFabricWithImage(imgURL) {
   const canvasEl = el("cutoutCanvas");
   const wrap = el("cutoutWrap");
 
   const rect = wrap.getBoundingClientRect();
-  const w = Math.max(300, Math.floor(rect.width));
-  const h = Math.max(420, Math.floor(rect.height));
+  const w = Math.max(320, Math.floor(rect.width || wrap.clientWidth || 320));
+  const h = Math.max(420, Math.floor(rect.height || wrap.clientHeight || 420));
 
   canvasEl.width = w;
   canvasEl.height = h;
 
-  fCanvas = new fabric.Canvas("cutoutCanvas", {
+  if (fCanvas) {
+    try { fCanvas.dispose(); } catch (e) {}
+    fCanvas = null;
+    historyStack = [];
+  }
+
+  const c = new fabric.Canvas("cutoutCanvas", {
     preserveObjectStacking: true,
-    selection: false,
+    selection: false
   });
+  fCanvas = c;
 
-  fabric.Image.fromURL(imgURL, (img) => {
-    const scale = Math.min(w / img.width, h / img.height);
-    img.scale(scale);
+  c.isDrawingMode = true;
 
-    img.set({
-      left: (w - img.getScaledWidth()) / 2,
-      top: (h - img.getScaledHeight()) / 2,
-      selectable: false,
-      evented: false,
-    });
+  fabric.Image.fromURL(
+    imgURL,
+    (img) => {
+      const scale = Math.min(w / img.width, h / img.height);
+      img.scale(scale);
 
+      img.set({
+        left: (w - img.getScaledWidth()) / 2,
+        top: (h - img.getScaledHeight()) / 2,
+        selectable: false,
+        evented: false
+      });
+
+      c.clear();
+      c.add(img);
+      c.renderAll();
+
+      if (!fabric.EraserBrush) {
+        alert("当前 Fabric 版本不支持 EraserBrush（需要 Fabric v5+）。请检查是否加载了 fabric@5.x");
+        return;
+      }
+
+      const eraser = new fabric.EraserBrush(c);
+      eraser.width = Number(el("brushSize").value || 25);
+      c.freeDrawingBrush = eraser;
+
+      c.forEachObject((obj) => { obj.erasable = true; });
+
+      historyStack = [c.toDataURL({ format: "png" })];
+
+      c.off("path:created");
+      c.on("path:created", () => {
+        historyStack.push(c.toDataURL({ format: "png" }));
+        if (historyStack.length > 30) historyStack.shift();
+      });
+    },
+    { crossOrigin: "anonymous" }
+  );
+}
+
+function updateBrushSizeUI() {
+  const v = Number(el("brushSize").value || 25);
+  el("brushSizeText").textContent = String(v);
+  if (fCanvas && fCanvas.freeDrawingBrush) {
+    fCanvas.freeDrawingBrush.width = v;
+  }
+}
+
+function undoOneStep() {
+  if (!fCanvas || historyStack.length <= 1) return;
+
+  historyStack.pop();
+  const prev = historyStack[historyStack.length - 1];
+
+  fabric.Image.fromURL(prev, (img) => {
     fCanvas.clear();
+
+    img.set({ left: 0, top: 0, selectable: false, evented: false });
+
+    const cw = fCanvas.getWidth();
+    const ch = fCanvas.getHeight();
+
+    img.scaleToWidth(cw);
+    img.scaleToHeight(ch);
+
     fCanvas.add(img);
     fCanvas.renderAll();
 
-    // 开启橡皮擦
     const eraser = new fabric.EraserBrush(fCanvas);
     eraser.width = Number(el("brushSize").value || 25);
     fCanvas.freeDrawingBrush = eraser;
     fCanvas.isDrawingMode = true;
-
-    // 初始快照
-    historyStack = [fCanvas.toDataURL({ format: "png" })];
-
-    fCanvas.on("path:created", () => {
-      historyStack.push(fCanvas.toDataURL({ format: "png" }));
-      if (historyStack.length > 30) historyStack.shift();
-    });
   }, { crossOrigin: "anonymous" });
 }
+
+/* ========== 导入图片 ========== */
 
 function loadFile(file) {
   clearExportPreview();
@@ -109,7 +225,6 @@ function loadFile(file) {
   if (currentImageURL) URL.revokeObjectURL(currentImageURL);
   currentImageURL = URL.createObjectURL(file);
 
-  // 默认进裁剪模式
   showOnly("crop");
 
   const cropImg = el("cropImage");
@@ -117,7 +232,7 @@ function loadFile(file) {
   cropImg.src = currentImageURL;
 }
 
-/* ========== 生成导出 Blob（方形/圆形 512） ========== */
+/* ========== 导出（方形/圆形 512） ========== */
 
 function getCropCanvas512() {
   if (!cropper) return null;
@@ -216,8 +331,6 @@ async function getCircleBlobFromCurrentMode() {
   });
 }
 
-/* ========== 导出预览 ========== */
-
 async function exportSquare() {
   const b = await getSquareBlobFromCurrentMode();
   if (!b) return alert("请先导入图片，并进行裁剪/抠图后再导出");
@@ -230,11 +343,10 @@ async function exportCircle() {
   setExportPreview(b);
 }
 
-/* ========== 一键上传到图标库（核心） ========== */
+/* ========== 一键上传到图标库 ========== */
 
 function getUploadName() {
   const manual = (el("uploadName").value || "").trim();
-  // 不填就用文件名；再不行就 icon
   return manual || originalFilenameBase || "icon";
 }
 
@@ -246,8 +358,8 @@ async function uploadBlobToLibrary(blob, nameBase, suffix) {
   const file = new File([blob], filename, { type: "image/png" });
 
   const fd = new FormData();
-  fd.append("source", file);       // ✅ 后端字段名：source
-  fd.append("name", nameBase);     // ✅ 写入 gist 的 name（后端做唯一化）
+  fd.append("source", file);     // 后端字段名：source
+  fd.append("name", nameBase);   // 写入 gist 的 name（后端做唯一化）
 
   try {
     const res = await fetch("/api/upload", { method: "POST", body: fd });
@@ -277,7 +389,7 @@ async function uploadCircleToLibrary() {
   await uploadBlobToLibrary(b, name, "_circle");
 }
 
-/* ========== 模式切换 / 抠图工具 ========== */
+/* ========== 模式切换 ========== */
 
 function switchToCropMode() {
   clearExportPreview();
@@ -298,46 +410,7 @@ function switchToCutoutMode() {
     return alert("请先导入图片");
   }
 
-  if (fCanvas) {
-    fCanvas.dispose();
-    fCanvas = null;
-    historyStack = [];
-  }
   initFabricWithImage(currentImageURL);
-}
-
-function updateBrushSizeUI() {
-  const v = Number(el("brushSize").value || 25);
-  el("brushSizeText").textContent = String(v);
-  if (fCanvas && fCanvas.freeDrawingBrush) {
-    fCanvas.freeDrawingBrush.width = v;
-  }
-}
-
-function undoOneStep() {
-  if (!fCanvas || historyStack.length <= 1) return;
-
-  historyStack.pop();
-  const prev = historyStack[historyStack.length - 1];
-
-  fabric.Image.fromURL(prev, (img) => {
-    fCanvas.clear();
-
-    img.set({ left: 0, top: 0, selectable: false, evented: false });
-
-    const cw = fCanvas.getWidth();
-    const ch = fCanvas.getHeight();
-    img.scaleToWidth(cw);
-    img.scaleToHeight(ch);
-
-    fCanvas.add(img);
-    fCanvas.renderAll();
-
-    const eraser = new fabric.EraserBrush(fCanvas);
-    eraser.width = Number(el("brushSize").value || 25);
-    fCanvas.freeDrawingBrush = eraser;
-    fCanvas.isDrawingMode = true;
-  }, { crossOrigin: "anonymous" });
 }
 
 function resetAll() {
@@ -349,7 +422,7 @@ function resetAll() {
   el("cropImage").src = "";
 
   if (fCanvas) {
-    fCanvas.dispose();
+    try { fCanvas.dispose(); } catch (e) {}
     fCanvas = null;
     historyStack = [];
   }
@@ -358,13 +431,6 @@ function resetAll() {
 }
 
 /* ========== ✅ 编辑页随机背景 + 点击切换下一张 ========== */
-
-/**
- * 说明：
- * - 只在编辑页生效（body 有 editor-body）
- * - 点击“空白背景区域”切换下一张
- * - 不会影响你在面板/画布上的操作（点到 panel 或 stage 不会切）
- */
 (function () {
   const randomImageURL = "https://www.loliapi.com/acg/";
   const body = document.body;
@@ -372,7 +438,6 @@ function resetAll() {
   if (!body.classList.contains("editor-body")) return;
 
   function withCacheBuster(url) {
-    // 给随机图片 URL 加时间戳，强制换图/避免缓存
     const join = url.includes("?") ? "&" : "?";
     return `${url}${join}t=${Date.now()}`;
   }
@@ -392,28 +457,23 @@ function resetAll() {
     body.style.backgroundAttachment = "fixed";
   }
 
-  // 首次加载背景
   applyRandomBg();
 
-  // 点击空白背景切换：只要不是点在 topbar / 面板 / 工作区 内部就切换
+  // 点击空白背景切换：只要不是点在界面内就切换
   document.addEventListener("click", (e) => {
     const inTopbar = e.target.closest(".editor-topbar");
     const inLayout = e.target.closest(".editor-layout");
     const inPanel = e.target.closest(".editor-panel");
     const inStage = e.target.closest(".editor-stage");
-
-    // 只允许点“真正的背景空白处”
     if (inTopbar || inLayout || inPanel || inStage) return;
-
     applyRandomBg();
   }, { passive: true });
 
-  // 额外加一个“快捷方式”：Shift + 点击任意位置也切换（防止页面没有空白背景）
+  // Shift + 点击任意位置也切换（保底）
   document.addEventListener("click", (e) => {
     if (!e.shiftKey) return;
     applyRandomBg();
   }, { passive: true });
-
 })();
 
 /* ========== 事件绑定 ========== */
@@ -430,14 +490,23 @@ window.addEventListener("DOMContentLoaded", () => {
   el("btnModeCrop").addEventListener("click", switchToCropMode);
   el("btnModeCutout").addEventListener("click", switchToCutoutMode);
 
+  // 裁剪工具
+  el("btnCropCenter").addEventListener("click", cropBoxCenter);
+  el("btnCropMax").addEventListener("click", cropBoxMax);
+  el("btnZoomIn").addEventListener("click", zoomIn);
+  el("btnZoomOut").addEventListener("click", zoomOut);
+  el("btnViewReset").addEventListener("click", viewReset);
+
+  // 抠图工具
   el("brushSize").addEventListener("input", updateBrushSizeUI);
   updateBrushSizeUI();
-
   el("btnUndo").addEventListener("click", undoOneStep);
 
+  // 导出
   el("btnExportSquare").addEventListener("click", exportSquare);
   el("btnExportCircle").addEventListener("click", exportCircle);
 
+  // 上传
   el("btnUploadSquare").addEventListener("click", uploadSquareToLibrary);
   el("btnUploadCircle").addEventListener("click", uploadCircleToLibrary);
 
