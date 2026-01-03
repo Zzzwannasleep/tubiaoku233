@@ -1,4 +1,4 @@
-# 📦 PicStoreJson（Zzzの二改Ver.）
+# PicStoreJson - 图标自助上传工具
 
 <p align="center">
   <a href="https://round.greentea520.xyz/"><b>🚀 在线体验</b></a>　
@@ -8,7 +8,7 @@
 
 <p align="center">
   <sub>
-    1️⃣ 不要肆意上传 ｜ 2️⃣ 禁止广告 ｜ 3️⃣ 请勿上传无关内容 ｜ 4️⃣ 请规范命名（重名会自动加后缀）
+    1️⃣ 请勿上传无关内容 | 2️⃣ 遵守命名规则 | 3️⃣ 避免广告干扰 | 4️⃣ 保证文件规范（重名自动加后缀）
   </sub>
 </p>
 
@@ -16,32 +16,34 @@
 
 ## ✨ 项目简介
 
-**PicStoreJson** 是一个基于 **Python + Flask** 的轻量级 Web 应用：
+**PicStoreJson** 是一个基于 **Python + Flask** 的轻量级 Web 应用，功能包括：
 
-- 📤 图片自助上传 → 图床（PicGo / ImgURL / PICUI）
-- 🧾 自动写入 GitHub Gist 的 `icons.json`（不覆盖历史，只追加）
-- 🧩 内置 **图标在线编辑器**（裁剪 / 手动抠图 / 一键上传）
-- 🤖 支持 **AI 抠图**：默认双通道（Clipdrop + remove.bg）自动均衡；可选「自定义AI（密码解锁）」模式
+* 📤 图片自助上传 → 支持图床（PicGo / ImgURL / PICUI）
+* 🧾 自动更新 GitHub Gist 的 `icons.json`（仅追加，不覆盖历史）
+* 🧩 内置 **图标在线编辑器**：裁剪、手动抠图、一键上传
+* 🤖 支持 **AI 抠图**：默认双通道（Clipdrop + remove.bg）自动均衡；支持密码解锁的「自定义AI模式」
 
 ---
 
 ## ✅ 功能清单
 
 ### 上传页
-- 单张上传（手动命名）
-- 批量上传（自动使用文件名作为名称）
-- 自动重名处理：`name` → `name1 / name2 / ...`
+
+* **单张上传**：手动命名上传一张图片
+* **批量上传**：自动使用文件名作为名称上传多张图片
+* **自动重名处理**：若文件名已存在，自动在名称后加上序号（如 `name1`, `name2`）
 
 ### 编辑页（/editor）
-- 裁剪（固定 1:1，拖动裁剪框，框住哪里裁哪里）
-- 手动抠图（橡皮擦擦背景，透明导出）
-- 导出：方形 PNG / 圆形 PNG（透明圆形遮罩）
-- 一键上传到图标库（走同一个 `/api/upload`）
-- 背景：点击空白背景切换下一张（随机二次元背景）
+
+* **裁剪功能**：支持 1:1 固定比例裁剪，拖动裁剪框即可
+* **手动抠图**：用橡皮擦擦除背景，生成透明图
+* **导出格式**：支持方形 PNG、圆形 PNG（透明圆形遮罩）
+* **一键上传**：上传至图标库，确保便捷
 
 ### AI 抠图
-- **默认AI（无需密码）**：Clipdrop + remove.bg 自动均衡负载，失败自动切换另一家
-- **自定义AI（可选，模式2）**：需要先输入密码解锁（后端下发 HttpOnly Cookie，防止前端盗 key）
+
+* **默认AI（无需密码）**：Clipdrop + remove.bg 自动均衡负载，失败会自动切换服务
+* **自定义AI（可选，密码解锁模式）**：输入密码后启用，适用于自定义 AI 抠图接口
 
 ---
 
@@ -84,109 +86,116 @@ project/
 
 ## 🚀 一键部署（Vercel）
 
-1) Fork 本项目到你的 GitHub  
-2) 点击下面按钮创建 Vercel 项目并填环境变量  
+1.Fork 本项目到你的 GitHub
+
+2.点击以下按钮创建 Vercel 项目并配置环境变量
+
+3.记得把仓库换成你自己的仓库
 
 [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/Zzzwannasleep/tubiaoku233&env=GIST_ID,GITHUB_USER,GITHUB_TOKEN,UPLOAD_SERVICE,PICGO_API_KEY,IMGURL_API_UID,IMGURL_API_TOKEN,IMGURL_ALBUM_ID,PICUI_TOKEN,PICUI_PERMISSION,PICUI_STRATEGY_ID,PICUI_ALBUM_ID,PICUI_EXPIRED_AT,CLIPDROP_API_KEY,REMOVEBG_API_KEY,FLASK_SECRET_KEY,CUSTOM_AI_ENABLED,CUSTOM_AI_PASSWORD,CUSTOM_AI_URL,CUSTOM_AI_FILE_FIELD,CUSTOM_AI_API_KEY,CUSTOM_AI_AUTH_HEADER,CUSTOM_AI_AUTH_PREFIX&envDescription=API%20Keys%20and%20GitHub%20Gist%20config&project-name=tubiaoku233&repo-name=tubiaoku233)
 
-> 说明：Deploy 按钮只能「预设变量名」，不能预设变量值；值需要你在 Vercel 里自己填写。
+> **说明**：Deploy 按钮只能预设环境变量的名字，变量值需要在 Vercel 上手动填写。
 
 ---
 
 ## 🧰 环境变量说明
 
-### GitHub Gist（必填）
-| 变量名 | 说明 |
-| --- | --- |
-| `GIST_ID` | 你的 Gist ID（URL 最后一串） |
-| `GITHUB_USER` | GitHub 用户名 |
-| `GITHUB_TOKEN` | GitHub Token（classic，勾选 `gist` 权限） |
+### GitHub Gist 配置（必填）
 
-### 上传服务（选填）
-| 变量名 | 说明 |
-| --- | --- |
-| `UPLOAD_SERVICE` | `PICGO` / `IMGURL` / `PICUI`（推荐 PICUI） |
-| `PICGO_API_KEY` | PicGo API Key |
-| `IMGURL_API_UID` | ImgURL UID |
-| `IMGURL_API_TOKEN` | ImgURL Token |
-| `IMGURL_ALBUM_ID` | ImgURL 相册 ID（可选） |
-| `PICUI_TOKEN` | PICUI Token（启用 PICUI 必填） |
-| `PICUI_PERMISSION` | `0` 私有 / `1` 公开（可选，默认 0） |
-| `PICUI_STRATEGY_ID` `PICUI_ALBUM_ID` `PICUI_EXPIRED_AT` | PICUI 进阶参数（可选） |
+| 变量名            | 说明                           |
+| -------------- | ---------------------------- |
+| `GIST_ID`      | Gist ID（从 Gist URL 的最后一部分提取） |
+| `GITHUB_USER`  | GitHub 用户名                   |
+| `GITHUB_TOKEN` | GitHub Token（确保勾选 `gist` 权限） |
 
-### 默认 AI 抠图（可选）
-| 变量名 | 说明 |
-| --- | --- |
-| `CLIPDROP_API_KEY` | Clipdrop key（有就填） |
-| `REMOVEBG_API_KEY` | remove.bg key（有就填） |
+### 上传服务配置（选必填）
 
-> 两个都填会自动均衡使用；只填一个就只用那一个。
+| 变量名                 | 说明                                              |
+| ------------------- | ----------------------------------------------- |
+| `UPLOAD_SERVICE`    | 选择上传服务：`PICGO` / `IMGURL` / `PICUI`（推荐 `PICUI`） |
+| `PICGO_API_KEY`     | PicGo API 密钥                                    |
+| `IMGURL_API_UID`    | ImgURL 用户 ID                                    |
+| `IMGURL_API_TOKEN`  | ImgURL Token                                    |
+| `PICUI_TOKEN`       | PICUI API Token                                 |
+| `PICUI_PERMISSION`  | 图标权限：`0` 私有 / `1` 公开                            |
+| `PICUI_STRATEGY_ID` | 进阶配置（可选）                                        |
 
-### 自定义 AI 抠图（可选，模式2：密码解锁）
-| 变量名 | 说明 |
-| --- | --- |
-| `CUSTOM_AI_ENABLED` | `1` 开启 / 其他为关闭 |
-| `CUSTOM_AI_PASSWORD` | 解锁密码（前端弹窗输入） |
-| `CUSTOM_AI_URL` | 你的自定义抠图接口（需要返回透明 PNG 二进制） |
+### AI 抠图配置（选必选）
+
+| 变量名                | 说明               |
+| ------------------ | ---------------- |
+| `CLIPDROP_API_KEY` | Clipdrop API 密钥  |
+| `REMOVEBG_API_KEY` | remove.bg API 密钥 |
+
+### 自定义 AI 抠图（密码解锁模式，选填）
+
+| 变量名                    | 说明                  |
+| ---------------------- | ------------------- |
+| `CUSTOM_AI_ENABLED`    | `1` 开启自定义 AI 抠图功能   |
+| `CUSTOM_AI_PASSWORD`   | 解锁密码                |
+| `CUSTOM_AI_URL`        | 自定义 AI 抠图接口的 URL    |
 | `CUSTOM_AI_FILE_FIELD` | 上传图片字段名（默认 `image`） |
-| `CUSTOM_AI_API_KEY` | 可选：自定义接口鉴权 key |
-| `CUSTOM_AI_AUTH_HEADER` | 可选：鉴权 header（默认 `Authorization`） |
-| `CUSTOM_AI_AUTH_PREFIX` | 可选：前缀（如 `Bearer `） |
-| `FLASK_SECRET_KEY` | （必填） 用于签名 cookie（建议随机长字符串） |
 
 ---
 
 ## 🧭 使用指南
 
-### 1) 单张上传（精确命名）
-1. 在「图片名称」输入框填写名称  
-2. 选择 **1 张图片**  
+### 1) 单张上传
+
+1. 在「图片名称」框中填写名称
+2. 选择一张图片
 3. 点击「单张上传」
 
-### 2) 批量上传（自动用文件名）
-1. 选择 **多张图片**  
-2. 点击「批量上传」  
-3. 名称会自动取文件名（去扩展名）
+### 2) 批量上传
 
-### 3) 编辑器（裁剪 / 抠图 / 一键上传）
-1. 打开：`/editor`  
-2. 导入图片  
-3. 裁剪模式：拖动裁剪框（固定 1:1）  
-4. 手动抠图：用橡皮擦擦背景（透明）  
-5. 导出或一键上传到图标库
+1. 选择多张图片
+2. 点击「批量上传」
+3. 名称将自动取自文件名（不包括扩展名）
 
-### 4) AI 抠图（默认 / 自定义）
-- 默认AI：点击「默认AI抠图」即可  
-- 自定义AI：先点「解锁自定义AI」输入密码 → 再点「自定义AI抠图」
+### 3) 编辑器使用
+
+1. 访问 `/editor` 页面
+2. 导入图片
+3. 进行裁剪（1:1比例）或抠图
+4. 导出或一键上传到图标库
+
+### 4) AI 抠图
+
+* 默认AI：点击「默认AI抠图」按钮即可
+* 自定义AI：输入解锁密码后，点击「自定义AI抠图」
 
 ---
 
 ## 🔒 安全说明
-- 不存储用户图片
-- 不记录用户信息
-- 图片直传图床
-- 仅修改你自己的 Gist JSON
-- 自定义AI采用「密码解锁 + HttpOnly cookie」，前端 JS 读不到 cookie 内容，降低被盗刷风险
+
+* 不存储用户上传的图片
+* 不记录用户信息
+* 图片直接上传至图床
+* 仅修改用户的 Gist 文件（`icons.json`）
+* 自定义 AI 模式使用密码解锁，并通过 HttpOnly cookie 限制前端 JS 读取，降低风险
 
 ---
 
 ## 🐛 常见问题
 
 ### 1) JSON 没更新？
-Gist 在本地/浏览器可能有缓存：请清缓存或稍等再刷新。
+
+Gist 在浏览器可能会缓存，建议清除缓存或稍等再刷新。
 
 ### 2) 上传失败？
-- 检查 Vercel 环境变量是否正确
-- GitHub Token 是否勾选 `gist`
-- 你选的图床服务（PicGo/ImgURL/PICUI）Key/Token 是否有效
-- 打开 Vercel Logs 看报错信息
 
-### 3) AI 抠图按钮报错？
-- 默认AI：确认填了 `CLIPDROP_API_KEY` 或 `REMOVEBG_API_KEY`
-- 自定义AI：确认 `CUSTOM_AI_ENABLED=1`，并配置 `CUSTOM_AI_PASSWORD`、`CUSTOM_AI_URL`
+* 确认 Vercel 环境变量配置正确
+* 确认 GitHub Token 权限
+* 检查图床服务（PicGo/ImgURL/PICUI）的 API 密钥是否有效
+
+### 3) AI 抠图报错？
+
+* 检查 `CLIPDROP_API_KEY` 或 `REMOVEBG_API_KEY` 是否配置正确
+* 如果使用自定义 AI，确认密码和 URL 配置正确
 
 ---
 
 ## 🙏 致谢
-- [PicGo](https://www.picgo.net/) / [ImgURL](https://www.imgurl.org) / [PICUI](https://picui.cn/) 提供图床服务
-- [CropperJS](https://github.com/fengyuanchen/cropperjs) 提供裁剪能力
+
+* [PicGo](https://www.picgo.net/) / [ImgURL](https://www.imgurl.org) / [PICUI](https://picui.cn/) 提供图床服务
+* [CropperJS](https://github.com/fengyuanchen/cropperjs) 提供裁剪能力
