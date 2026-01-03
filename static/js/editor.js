@@ -608,6 +608,79 @@ function resetAll() {
   }, { passive: true });
 })();
 
+
+/* ========== AI Cutout (default + custom mode2) ========== */
+
+async function aiCutout(endpoint) {
+  const msgEl = el("aiMsg");
+  if (msgEl) msgEl.textContent = "AI 抠图中...";
+
+  const squareBlob = await getSquareBlobFromCurrentMode();
+  if (!squareBlob) {
+    if (msgEl) msgEl.textContent = "";
+    return alert("请先导入图片，并完成裁剪/抠图后再使用 AI 抠图");
+  }
+
+  const fd = new FormData();
+  fd.append("image", new File([squareBlob], "icon.png", { type: "image/png" }));
+
+  const res = await fetch(endpoint, { method: "POST", body: fd });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    const err = data.error || `HTTP ${res.status}`;
+    if (msgEl) msgEl.textContent = `❌ AI 抠图失败：${err}`;
+    return;
+  }
+
+  const outBlob = await res.blob();
+  const outURL = URL.createObjectURL(outBlob);
+
+  // 用 AI 结果作为新的“当前图片”，回到裁剪模式继续微调/导出/上传
+  if (currentImageURL) URL.revokeObjectURL(currentImageURL);
+  currentImageURL = outURL;
+
+  // 重置抠图历史，让手动抠图继续可用
+  cutCanvas = null;
+  cutCtx = null;
+  cutImg = null;
+  cutIsDrawing = false;
+  cutHistory = [];
+
+  showOnly("crop");
+  clearExportPreview();
+  el("uploadMsg").textContent = "";
+
+  const cropImg = el("cropImage");
+  cropImg.onload = () => initCropper(cropImg);
+  cropImg.src = currentImageURL;
+
+  if (msgEl) msgEl.textContent = "✅ AI 抠图完成：已回到裁剪模式（可继续裁剪/导出/一键上传）";
+}
+
+async function unlockCustomAI() {
+  const msgEl = el("aiMsg");
+  const pwd = prompt("请输入自定义AI解锁密码：");
+  if (!pwd) return;
+
+  if (msgEl) msgEl.textContent = "验证密码中...";
+
+  const res = await fetch("/api/ai/custom/auth", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ password: pwd }),
+  });
+
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok || !data.success) {
+    if (msgEl) msgEl.textContent = `❌ 解锁失败：${data.error || `HTTP ${res.status}`}`;
+    return;
+  }
+
+  if (msgEl) msgEl.textContent = "✅ 自定义AI已解锁（本浏览器 1 天有效）";
+  const btn = el("btnAICutoutCustom");
+  if (btn) btn.style.display = "block";
+}
+
 /* ========== Bind events ========== */
 
 window.addEventListener("DOMContentLoaded", () => {
@@ -651,6 +724,12 @@ window.addEventListener("DOMContentLoaded", () => {
   // upload
   el("btnUploadSquare")?.addEventListener("click", uploadSquareToLibrary);
   el("btnUploadCircle")?.addEventListener("click", uploadCircleToLibrary);
+
+
+// AI cutout
+el("btnAICutoutDefault")?.addEventListener("click", () => aiCutout("/api/ai_cutout"));
+el("btnUnlockCustomAI")?.addEventListener("click", unlockCustomAI);
+el("btnAICutoutCustom")?.addEventListener("click", () => aiCutout("/api/ai_cutout_custom"));
 
   el("btnReset")?.addEventListener("click", resetAll);
 
