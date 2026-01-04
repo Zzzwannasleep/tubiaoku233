@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1"/>
   <title>Manage · Zzzの图标库</title>
   <link rel="icon" href="{{ url_for('static', filename='favicon.png') }}" type="image/png">
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/manage.css') }}?v=manage_20260104">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/manage.css') }}?v=manage_20260104A">
 </head>
 
 <body class="m-body">
@@ -41,12 +41,22 @@
       <div class="m-bar">
         <div class="m-row">
           <input class="m-input" id="q" placeholder="搜索（可选，按 PICUI）"/>
+
+          <button class="m-btn ghost" id="btnPrev">上一页</button>
+          <span class="pill" id="pageInfo">Page -</span>
+          <button class="m-btn ghost" id="btnNext">下一页</button>
+
+          <span class="pill">跳到</span>
+          <input class="m-input" id="jump" style="max-width:120px;min-width:120px;flex:0;" placeholder="页码"/>
+          <button class="m-btn ghost" id="btnJump">跳转</button>
+
           <button class="m-btn" id="btnLoad">刷新</button>
           <button class="m-btn danger" id="btnBulk">批量删除</button>
           <button class="m-btn ghost" id="btnLogout">退出</button>
         </div>
         <div class="m-meta">
           <span class="pill" id="gistInfo"></span>
+          <span class="pill" id="picuiInfo"></span>
           <span class="pill">一致性：仅 PICUI 删除成功才删 Gist</span>
         </div>
       </div>
@@ -68,15 +78,21 @@
       </div>
 
       <div class="m-foot">
-        点击背景可换图；Shift+点击任意位置也可换图。
+        点击背景可换图；Shift+点击任意位置也可换图。缩略图为 lazy-load，避免一次性拉爆请求。
       </div>
     </section>
   </main>
 
 <script>
+  // ===== 二次元随机背景（带节流，避免狂点卡顿）=====
   const BG_API = "{{ bg_api }}";
   const bg = document.getElementById("mBg");
+
+  let bgLock = false;
   function setBg(){
+    if(bgLock) return;
+    bgLock = true;
+    setTimeout(()=>bgLock=false, 300);
     const u = BG_API.includes("?") ? (BG_API + "&t=" + Date.now()) : (BG_API + "?t=" + Date.now());
     bg.style.backgroundImage = `url("${u}")`;
   }
@@ -85,12 +101,17 @@
   bg.addEventListener("click", setBg);
   window.addEventListener("click", (e)=>{ if(e.shiftKey) setBg(); });
 
+  // ===== 管理逻辑 =====
   const loginCard = document.getElementById("loginCard");
   const panel = document.getElementById("panel");
   const rows = document.getElementById("rows");
   const gistInfo = document.getElementById("gistInfo");
+  const picuiInfo = document.getElementById("picuiInfo");
+  const pageInfo = document.getElementById("pageInfo");
 
   let currentItems = [];
+  let currentPage = 1;
+  let lastPage = 1;
 
   async function login(){
     const password = document.getElementById("pwd").value;
@@ -109,7 +130,7 @@
     msg.textContent = "";
     loginCard.classList.add("hidden");
     panel.classList.remove("hidden");
-    await loadImages();
+    await loadImages(true);
   }
 
   async function logout(){
@@ -123,10 +144,9 @@
       .map(x=>currentItems[Number(x.dataset.idx)]);
   }
 
-  function render(items, stats){
+  function render(items){
     rows.innerHTML = "";
     currentItems = items || [];
-    gistInfo.textContent = stats ? `Gist icons: ${stats.count}` : "";
 
     currentItems.forEach((it, idx)=>{
       const tr = document.createElement("tr");
@@ -136,7 +156,7 @@
 
       tr.innerHTML = `
         <td><input class="chk" type="checkbox" data-idx="${idx}"/></td>
-        <td>${it.url ? `<img class="thumb" src="${it.url}" alt="img"/>` : ""}</td>
+        <td>${it.url ? `<img class="thumb" loading="lazy" src="${it.url}" alt="img"/>` : ""}</td>
         <td>${it.url ? `<a class="a" href="${it.url}" target="_blank">${it.url}</a>` : ""}</td>
         <td class="mono">${it.key || ""}</td>
         <td>${jsonCell}</td>
@@ -156,20 +176,32 @@
     });
   }
 
-  async function loadImages(){
+  async function loadImages(resetPage=false){
+    if(resetPage) currentPage = 1;
+
     const q = document.getElementById("q").value || "";
-    const r = await fetch("/api/admin/images?q=" + encodeURIComponent(q));
+    const r = await fetch(`/api/admin/images?page=${currentPage}&q=${encodeURIComponent(q)}`);
+
     if(r.status === 401){
       alert("未登录或登录过期");
       location.reload();
       return;
     }
+
     const j = await r.json();
     if(!j.ok){
       alert(j.message || "加载失败");
       return;
     }
-    render(j.items, j.gist_stats);
+
+    const p = j.picui || {};
+    lastPage = Number(p.last_page || 1);
+
+    pageInfo.textContent = `Page ${currentPage} / ${lastPage}`;
+    gistInfo.textContent = j.gist_stats ? `Gist icons: ${j.gist_stats.count}` : "";
+    picuiInfo.textContent = `PICUI: total ${p.total ?? "-"} · per_page ${p.per_page ?? "-"}`;
+
+    render(j.items || []);
   }
 
   async function doDelete(items){
@@ -195,7 +227,7 @@
       msg += `icons.json 移除 ${gist.removed} 条（before=${gist.before}, after=${gist.after}）`;
     }
     if(msg) alert(msg);
-    await loadImages();
+    await loadImages(false);
   }
 
   async function bulkDelete(){
@@ -208,11 +240,40 @@
     await doDelete(selected);
   }
 
+  // ===== 事件绑定 =====
   document.getElementById("btnLogin").onclick = login;
   document.getElementById("btnLogout").onclick = logout;
-  document.getElementById("btnLoad").onclick = loadImages;
+  document.getElementById("btnLoad").onclick = ()=>loadImages(false);
   document.getElementById("btnBulk").onclick = bulkDelete;
+
   document.getElementById("pwd").addEventListener("keydown", (e)=>{ if(e.key==="Enter") login(); });
+
+  document.getElementById("q").addEventListener("keydown", (e)=>{
+    if(e.key==="Enter") loadImages(true);
+  });
+
+  document.getElementById("btnPrev").onclick = async ()=>{
+    if(currentPage <= 1) return;
+    currentPage -= 1;
+    await loadImages(false);
+  };
+
+  document.getElementById("btnNext").onclick = async ()=>{
+    if(currentPage >= lastPage) return;
+    currentPage += 1;
+    await loadImages(false);
+  };
+
+  document.getElementById("btnJump").onclick = async ()=>{
+    const v = parseInt((document.getElementById("jump").value || "").trim(), 10);
+    if(!v || v < 1) return;
+    currentPage = Math.min(v, lastPage || v);
+    await loadImages(false);
+  };
+
+  document.getElementById("jump").addEventListener("keydown", (e)=>{
+    if(e.key === "Enter") document.getElementById("btnJump").click();
+  });
 </script>
 </body>
 </html>
