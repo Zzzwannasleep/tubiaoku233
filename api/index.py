@@ -272,7 +272,7 @@ def home():
 
 @app.route("/editor")
 def editor():
-    # 给编辑页传随机背景 API，统一二次元风格
+    # 如果你 editor.html 没用 bg_api 也不影响；用的话就是二次元随机背景
     return render_template("editor.html", custom_ai_enabled=CUSTOM_AI_ENABLED, bg_api=RANDOM_BG_API)
 
 # ===== 独立 manage 页面 =====
@@ -308,20 +308,27 @@ def api_admin_logout():
 @app.get("/api/admin/images")
 @require_admin
 def api_admin_images():
+    """
+    方案 A：管理页 1 页 = PICUI 的 1 页
+    - page: PICUI 页码
+    - q: 可选搜索
+    """
     page = int(request.args.get("page", "1"))
     q = (request.args.get("q") or "").strip() or None
 
     pj = picui_list_images(page=page, q=q)
 
+    # 读一次 Gist（只读，不写）
     content = _read_icons_json_from_gist()
     icons = content.get("icons", []) or []
     by_url = {it.get("url"): it for it in icons if it.get("url")}
-
     raw_url = gist_raw_icons_url()
 
-    data_list = (pj.get("data", {}) or {}).get("data")
-    if data_list is None:
-        data_list = pj.get("data") or []
+    data_obj = (pj.get("data", {}) or {})
+    data_list = data_obj.get("data") or []
+    per_page = data_obj.get("per_page")
+    last_page = data_obj.get("last_page")
+    total = data_obj.get("total")
 
     items = []
     for img in (data_list or []):
@@ -340,6 +347,11 @@ def api_admin_images():
         "ok": True,
         "page": page,
         "items": items,
+        "picui": {
+            "per_page": per_page,
+            "last_page": last_page,
+            "total": total
+        },
         "raw_icons_json": raw_url,
         "gist_stats": {"count": len(icons)}
     })
@@ -348,9 +360,10 @@ def api_admin_images():
 @require_admin
 def api_admin_delete():
     """
-    一致性保证：
+    一致性保证（你要求的）：
     - 先删 PICUI
     - 只有 PICUI 删除成功的，才从 icons.json 移除
+    - 批量删除：Gist 更新合并为一次 PATCH
     """
     data = request.get_json(silent=True) or {}
     items = data.get("items") or []
@@ -372,7 +385,7 @@ def api_admin_delete():
             picui_delete_by_key(key)
             picui_results.append({"ok": True, "key": key, "url": url})
             if url:
-                urls_to_remove.add(url)
+                urls_to_remove.add(url)  # 关键：只收集成功的
         except Exception as e:
             picui_results.append({"ok": False, "key": key, "url": url, "error": str(e)})
 
