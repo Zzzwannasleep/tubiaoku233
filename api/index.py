@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify, render_template, Response
+from flask import Flask, request, jsonify, render_template, Response, url_for
 import requests
 import os
 import json
@@ -182,6 +182,16 @@ def gist_remove_icons_by_urls(urls_to_remove: set):
 def gist_raw_icons_url():
     return f"https://gist.githubusercontent.com/{GITHUB_USER}/{GIST_ID}/raw/{GIST_FILE_NAME}"
 
+# ===== 对外暴露带 .json 后缀的订阅地址（同域名，便于客户端识别）=====
+@app.get("/icons.json")
+def icons_json():
+    try:
+        content = _read_icons_json_from_gist()
+        # 使用 Response 而不是 jsonify，保证缩进 & Content-Type=application/json
+        return Response(json.dumps(content, ensure_ascii=False, indent=2), mimetype="application/json")
+    except Exception as e:
+        return jsonify({"error": "无法读取 icons.json", "details": str(e)}), 500
+
 # ===== 图片上传实现 =====
 
 def upload_to_picgo(img):
@@ -281,7 +291,7 @@ def editor():
 def manage_page():
     if not ADMIN_ENABLED:
         return "Admin disabled", 403
-    return render_template("manage.html", bg_api=RANDOM_BG_API, gist_raw=gist_raw_icons_url())
+    return render_template("manage.html", bg_api=RANDOM_BG_API, gist_raw=url_for("icons_json"))
 
 # ===== Admin API =====
 
@@ -322,7 +332,7 @@ def api_admin_images():
     content = _read_icons_json_from_gist()
     icons = content.get("icons", []) or []
     by_url = {it.get("url"): it for it in icons if it.get("url")}
-    raw_url = gist_raw_icons_url()
+    raw_url = url_for("icons_json", _external=True)
 
     data_obj = (pj.get("data", {}) or {})
     data_list = data_obj.get("data") or []
