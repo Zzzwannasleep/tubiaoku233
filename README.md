@@ -62,13 +62,11 @@
 
 ```json
 {
-  "name": "Forward icon self-service upload",
-  "description": "by huangxd-，图标自助上传",
-  "icons": [
-    { "name": "TVB", "url": "https://img.picgo.net/2025/07/12/example.png" }
-  ]
+  "name": "Forward",
+  "description": "",
+  "icons": []
 }
-````
+```
 
 ---
 
@@ -82,20 +80,43 @@ project/
 │   ├── css/
 │   │   ├── style.css
 │   │   ├── editor.css
-│   │   └── manage.css
+│   │   ├── manage.css
+│   │   └── github.css
 │   ├── js/
 │   │   ├── script.js
-│   │   └── editor.js
+│   │   ├── editor.js
+│   │   └── github.js
 │   └── favicon.png
 ├── templates/
 │   ├── index.html
+│   ├── github.html
 │   ├── editor.html
 │   └── manage.html
+├── .env.example
 ├── requirements.txt
 └── vercel.json
 ```
 
 ---
+
+## 🧰 快速开始（部署前准备）
+
+1. 创建一个 GitHub Gist（建议 Secret/Private），新建文件 `icons.json`，内容参考上面的 JSON 示例，然后记录 `GIST_ID`
+2. 选择上传模式：
+   - `PICUI`：准备 `PICUI_TOKEN`（/manage 也依赖它）
+   - `GITHUB`：先创建一个仓库（建议公开），然后设置 `GITHUB_REPO=owner/repo`（或 `GITHUB_REPO_OWNER` + `GITHUB_REPO_NAME`），并准备 `GITHUB_REPO_TOKEN`（Contents 写权限）
+3. 参考仓库里的 `.env.example` 把环境变量填好（本地可复制为 `.env`），再部署到 Vercel
+
+## 🔗 页面 & JSON
+
+| 类型 | 路径 |
+| --- | --- |
+| 上传页（PICUI/PicGo/ImgURL） | `/`（GitHub 模式会自动跳转到 `/github`） |
+| GitHub 图床页（仅 `UPLOAD_SERVICE=GITHUB`） | `/github` |
+| 图标编辑器 | `/editor` |
+| 管理后台（需要开启 `ADMIN_ENABLED=1` 且配置 `PICUI_TOKEN`） | `/manage` |
+| JSON（默认） | `/icons.json` |
+| JSON（GitHub 分类） | `/icons-square.json` / `/icons-circle.json` / `/icons-transparent.json` |
 
 ## 🚀 一键部署（Vercel）
 
@@ -104,6 +125,8 @@ project/
 3. 记得把仓库换成你自己的仓库
 
 > **说明**：Deploy 按钮只能预设环境变量的名字，变量值需要在 Vercel 上手动填写。
+>
+> 建议先参考 `.env.example`，把需要的值准备好再去填。
 
 [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/Zzzwannasleep/tubiaoku233&env=GIST_ID,GITHUB_USER,GITHUB_TOKEN,GITHUB_GIST_FILE_SQUARE,GITHUB_GIST_FILE_CIRCLE,GITHUB_GIST_FILE_TRANSPARENT,UPLOAD_SERVICE,GITHUB_REPO,GITHUB_REPO_OWNER,GITHUB_REPO_NAME,GITHUB_REPO_BRANCH,GITHUB_REPO_DIR,GITHUB_REPO_TOKEN,GITHUB_REPO_URL_MODE,GITHUB_REPO_URL_PREFIX,GITHUB_REPO_COMMIT_MESSAGE,PICGO_API_KEY,IMGURL_API_UID,IMGURL_API_TOKEN,IMGURL_ALBUM_ID,PICUI_TOKEN,PICUI_PERMISSION,PICUI_STRATEGY_ID,PICUI_ALBUM_ID,PICUI_EXPIRED_AT,CLIPDROP_API_KEY,REMOVEBG_API_KEY,FLASK_SECRET_KEY,CUSTOM_AI_ENABLED,CUSTOM_AI_PASSWORD,CUSTOM_AI_URL,CUSTOM_AI_FILE_FIELD,CUSTOM_AI_API_KEY,CUSTOM_AI_AUTH_HEADER,CUSTOM_AI_AUTH_PREFIX,ADMIN_ENABLED,ADMIN_PASSWORD,ADMIN_COOKIE_MAX_AGE,RANDOM_BG_API&envDescription=API%20Keys%20and%20GitHub%20Gist%2FRepo%20config%20%2B%20Admin%20Panel&project-name=tubiaoku233&repo-name=tubiaoku233)
 
@@ -151,7 +174,13 @@ project/
 | `GITHUB_GIST_FILE_SQUARE`      | GitHub 模式：方形分类写入的 Gist 文件名（默认 `icons-square.json`）       |
 | `GITHUB_GIST_FILE_CIRCLE`      | GitHub 模式：圆形分类写入的 Gist 文件名（默认 `icons-circle.json`）       |
 | `GITHUB_GIST_FILE_TRANSPARENT` | GitHub 模式：透明分类写入的 Gist 文件名（默认 `icons-transparent.json`） |
-PS：由于我全程使用PICUI去做这个功能没有适配别的图床Api 想换别的图床同时使用完整功能的建议拿到手先让AI改一下项目先
+
+> 提示：
+> - `GITHUB_REPO` 必须是 `owner/repo`（不要只填 `repo`）
+> - GitHub Repo 模式建议仓库公开（`RAW`/`JSDELIVR` 才能直接外链访问）
+> - 如果你想把 3 个分类都写回同一个 `icons.json`：把 `GITHUB_GIST_FILE_*` 都设置成 `icons.json`
+>
+> PS：目前 /manage 管理后台依赖 PICUI 的图片列表/删除接口，因此需要配置 `PICUI_TOKEN` 才能正常使用。
 
 ### ✂️ AI 抠图配置（可选）
 
